@@ -251,6 +251,7 @@ So now we know that timer type 5 is TSC. What about timer type 12 and 15?
 
 If we look at the specs of HPET, we can see that it has a frequency of 10 MHz, which is the same as the one we see in `HalpClockTimer`
 And as for timer type 15, it is the LAPIC timer, we can find the frequency of that by using:
+Refer to this for [CPUID](https://www.felixcloutier.com/x86/cpuid)
 ```c
 #include <intrin.h>
 #include <stdio.h>
@@ -272,3 +273,14 @@ Which is essentially the same as what we saw for:
 lkd> ? poi (fffff7e0`80013be0+0xC0)
 Evaluate expression: 38400006 = 00000000`0249f006
 ```
+
+A quick short breakdown of what the `38400000` means, it is the processor’s nominal core‐crystal clock frequency in hertz:
+That means that TSC is driven off this crystal, and multiplied by a small integer ratio (EBX/EAX) that  the CPU advertises in the same CPUID leaf. (see the file in the repo)
+```bat
+C:\Users\eske\Desktop\apic>cpuID.exe
+EAX (denominator)       : 2
+EBX (numerator)         : 166
+ECX (core crystal clock): 38400000 Hz
+=> Computed TSC freq    : 3187200000 Hz
+```
+tsc freq = `(core crystal clock * EBX) / EAX`
