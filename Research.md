@@ -1,5 +1,7 @@
 # Research on the useage of USEPLATFORMTICK
 
+[Discord server where I do research](https://discord.gg/YdYVSBbZWY)
+
 ## 1. Initial Discovery and String Analysis
 
 Only usage of USEPLATFORMTICK in all of the system, done by dumping all strings of system32 use [strings2.exe](https://github.com/glmcdona/strings2) and finding USEPLATFORMTICK, no other code uses `USEPLATFORMTICK` besides ntoskrnl.exe, and ntkrla57.exe
