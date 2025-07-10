@@ -286,3 +286,68 @@ ECX (core crystal clock): 38400000 Hz
 tsc freq = `(core crystal clock * EBX) / EAX`
 
 
+## 8. Investigating frequency of HPET
+
+```
+[63 … 32] = Main Counter Period, in femtoseconds
+[31 …  0] = Capability bits (vendor ID, # timers, 64-bit support, etc.)
+```
+We can get our HPET physical address by using the symbol `HalpHpetPhysicalAddress`, but thats not the one we want, we want the HPET base address(virual address), which is `HalpHpetBaseAddress`.
+```
+lkd> dq HalpHpetBaseAddress l1
+fffff803`ead8e000  fffff7e0`80014000
+```
+
+Now we can dum the memory at that adress:
+```
+lkd> dq fffff7e0`80014000 l1
+fffff7e0`80014000  031aba85`8086a701
+```
+So the upper 32 bits are `0x031aba85` and the lower 32 bits are `0x8086a701`, which is the vendor ID, which is Intel, and the lower 32 bits are the capability bits.
+
+`0x031aba85` in decimal is `52083333` in femtoseconds, In seconds that would be equivilent to `52083333*1e-15s = 52.083333ns`
+
+We can now get the frequency of my HPET:
+`Frequency(Hz)=1000000000000000/52083333=19200000.1229`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+later for vppt
+```
+lkd> dq HalpVpptPhysicalTimer l1
+fffff803`eadc0760  fffff7e0`80013460
+lkd> dt _HAL_CLOCK_TIMER_CONFIGURATION fffff7e0`80013460
+nt!_HAL_CLOCK_TIMER_CONFIGURATION
+   +0x000 Flags            : 0x48 'H'
+   +0x000 AlwaysOnTimer    : 0y0
+   +0x000 HighLatency      : 0y0
+   +0x000 PerCpuTimer      : 0y0
+   +0x000 DynamicTickSupported : 0y1
+   +0x004 KnownType        : 0xfffff7e0
+   +0x008 Capabilities     : 0x80013250
+   +0x010 MaxIncrement     : 0x4a84
+   +0x018 MinIncrement     : 0
+lkd> dd fffff7e0`80013460+0xE4 l1
+fffff7e0`80013544  00000003
+lkd> ? poi (fffff7e0`80013460+0xC0)
+Evaluate expression: 19200000 = 00000000`0124f800
+```
