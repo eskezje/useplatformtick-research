@@ -7,3 +7,14 @@ Only useage of USEPLATFORMTICK in all of the system, done by dumping all strings
         HalpTimerPlatformClockSourceForced = 1;     // then we set HalpTimerPlatformClockSourceForced = 1, now we can look for references for HalpTimerPlatformClockSourceForced
 ```
 
+The only xreferences to `HalpTimerPlatformClockSourceForced` is the function called `HalpTimerFindIdealClockSource`.
+
+Now we can use the IDA plugins to look at references to `HalpTimerFindIdealClockSource`.
+
+```py
+Python>import export_clean_xrefs
+Python>import export_each_func
+Python>export_clean_xrefs.export_xrefs_pseudocode('HalpTimerFindIdealClockSource', max_depth=10)
+Python>export_each_func.export_xrefs_pseudocode('HalpTimerFindIdealClockSource', max_depth=10)
+```
+

@@ -24,7 +24,7 @@ def export_path(path, outdir, counter):
     full = os.path.join(outdir, fname)
 
     with open(full, "w") as f:
-        f.write(f"/* Call path: {' -> '.join(names)} */\n\n")
+        f.write(f"/* Call path: {' <- '.join(names)} */\n\n")
         for nm, ea, cfunc in path:
             f.write(f"/* ===== Function: {nm} @ {ea:#x} ===== */\n")
             # Clean each simpleline_t via tag_remove
