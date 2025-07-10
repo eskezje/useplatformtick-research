@@ -144,3 +144,36 @@ return Timer & 0x0000000000000000;
 return 0;  // NULL pointer
 ```
 
+Can we maybe dig deeper into what HalpFindTimer does?
+I will make some assumptions as to what each argument in `HalpFindTimer` does:
+```c
+ULONG_PTR *__fastcall HalpFindTimer(int a1, int a2, int a3, int a4, char a5)
+a1 = Timer type/ID
+```
+
+But how do we know what timer type/ID we are currently using?
+We can look at
+```c
+&& (!a1 || a1 == *((_DWORD *)v11 + 57))
+```
+`v11` is the timer pointer and `*((_DWORD *)v11 + 57)`  means DWORD at offset `57*4`= `0xE4` bytes, which gives us the offset for timers we can look at, to see what type they have.
+
+Here we get some more information on the timers for our system:
+```
+lkd> dd HalpRegisteredTimerCount l1
+fffff803`eadc259c  00000008
+lkd> dq HalpRegisteredTimers l4
+fffff803`eadc2580  fffff7e0`80001000 fffff7e0`80016000
+fffff803`eadc2590  fffff7e0`80013be0 00000008`00000001
+```
+We can see that the the 2nd entry mathes our `HalpClockTimer` (`fffff7e080016000`), lets now take a look at these 3 different timers:
+```
+lkd> dd fffff7e0`80001000+0xE4 l1
+fffff7e0`800010e4  00000005
+lkd> dd fffff7e0`80016000+0xE4 l1
+fffff7e0`800160e4  0000000c
+lkd> dd fffff7e0`80013be0+0xE4 l1
+fffff7e0`80013cc4  0000000f
+```
+We can see that the first timer has type `5`, the second timer has type `12` and the third timer has type `15`, and the one we are using is `12`.
+
