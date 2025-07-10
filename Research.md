@@ -402,38 +402,6 @@ lkd> ? poi (fffff7e0`80013460+0xC0)
 Evaluate expression: 19200000 = 00000000`0124f800   // 19.2 MHz (actual HPET frequency)
 ```
 
-## 10. Complete Timer Architecture Understanding
-
-### 10.1 Timer Type Summary
-
-Based on our research, the timer types are:
-- **Timer Type 5**: TSC (3,187 MHz) - Time Stamp Counter
-- **Timer Type 12**: VPPT-virtualized platform timer (10 MHz standardized frequency)
-- **Timer Type 15**: LAPIC Timer (38.4 MHz) - Local APIC Timer
-- **Timer Type 3**: HPET main counter (19.2 MHz) - High Precision Event Timer
-
-### 10.2 USEPLATFORMTICK Implementation
-
-With `USEPLATFORMTICK=yes`, Windows:
-
-1. **Selects platform-based timers** through `HalpTimerFindIdealClockSource`
-2. **Registers VPPT virtualization** if the timer supports it
-3. **Maintains platform timing source** while providing optimized access
-
-The final result: Your system uses a **VPPT-virtualized HPET** as the clock timer, satisfying the platform tick requirement while optimizing for virtualized environments.
-
-### 10.3 Frequency Relationships
-
-- **HPET Hardware**: 19.2 MHz (calculated from period: 1,000,000,000,000,000 / 52,083,333 = 19,200,000.1229 Hz)
-- **VPPT Interface**: 10 MHz (standardized virtual frequency)
-- **Frequency Conversion**: VPPT handles translation between the virtual 10 MHz interface and the actual 19.2 MHz HPET hardware
-
-
-
-
-
-
-
 
 
 
