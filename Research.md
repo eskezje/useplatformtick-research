@@ -381,7 +381,33 @@ if ( (*(_DWORD *)(HalpClockTimer + 0xE0) & 1) == 0 )  // Timer lacks VPPT suppor
 
 ### 9.4 Looking closer at HalpVpptTimerRegister
 
-
+```c
+__int64 __fastcall HalpVpptTimerRegister(_DWORD *a1, char a2)
+{    
+    // Store reference to the physical timer being virtualized
+    HalpVpptPhysicalTimerTarget = -1;
+    *(_QWORD *)&HalpVpptPhysicalTimer = a1;  // Store original HPET timer
+    
+    // Initialize VPPT infrastructure
+    ExtEnvInitializeSpinLock(&HalpVpptLock);
+    qword_140FC0718 = (__int64)&HalpVpptQueue;
+    *(_QWORD *)&HalpVpptQueue = &HalpVpptQueue;
+    
+    // Create new timer registration structure for VPPT
+    memset_0(v7, 0, 0x90uLL);
+    v8 = HalpVpptInitialize;           // VPPT initialization function
+    v9 = HalpVpptAcknowledgeInterrupt; // VPPT interrupt handler
+    v10 = HalpVpptArmTimer;            // VPPT timer arming function
+    v11 = HalpVpptStop;                // VPPT stop function
+    
+    v21 = 12;                          // Timer type 12 (VPPT)
+    v15 = 10000000LL;                  // Fixed 10 MHz frequency
+    v16 = v4 | v5 | 0x210031;          // VPPT capability flags
+    
+    // Register the new VPPT timer
+    return HalpTimerRegister((__int64)v7, 0LL, v6);
+}
+```
 
 
 ### 9.5 VPPT Physical Timer Relationship

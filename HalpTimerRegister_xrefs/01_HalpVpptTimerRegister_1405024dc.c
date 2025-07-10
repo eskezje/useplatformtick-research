@@ -26,16 +26,16 @@ __int64 __fastcall HalpVpptTimerRegister(_DWORD *a1, char a2)
   __int128 v25; // [rsp+D0h] [rbp+47h]
 
   if ( !a1 )
-    return 0xC000000DLL;
+    return 0xC000000DLL;                                // STATUS_INVALID_PARAMETER
   if ( a2 && (a1[56] & 0x8000) == 0 )
-    return 0xC00000BBLL;
+    return 0xC00000BBLL;                                // STATUS_NOT_SUPPORTED
   if ( (a1[56] & 1) != 0 )
-    return 0xC00000BBLL;
+    return 0xC00000BBLL;                                // STATUS_NOT_SUPPORTED
   v4 = a1[56] & 0xB00;
   if ( !v4 )
-    return 0xC00000BBLL;
+    return 0xC00000BBLL;                                // STATUS_NOT_SUPPORTED
   if ( _InterlockedExchange(&HalpVpptRegistered, 1) )
-    return 0xC0000718LL;
+    return 0xC0000718LL;                                // STATUS_ALREADY_REGISTERED
   HalpVpptPhysicalTimerTarget = -1;
   *(_QWORD *)&HalpVpptPhysicalTimer = a1;
   ExtEnvInitializeSpinLock(&HalpVpptLock);
