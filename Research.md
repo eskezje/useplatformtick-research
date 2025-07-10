@@ -18,3 +18,43 @@ Python>export_clean_xrefs.export_xrefs_pseudocode('HalpTimerFindIdealClockSource
 Python>export_each_func.export_xrefs_pseudocode('HalpTimerFindIdealClockSource', max_depth=10)
 ```
 
+In `HalpTimerFindIdealClockSource`(link the file here) we can now look at the control flow and see that.
+
+If either `HalpHvCpuManager` or `HalpHvPresent` are both false, then we jump to LABEL_7, where we then try to find this timer `Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);`, whatever it might be. Then as it finds a suitable timer, it then jumps to LABEL_26, assigns `v4 = *(_DWORD *)(Timer + 0xE0);` if then `(v4 & 0x50) != 0` then we `return Timer & -(__int64)((v4 & 0x20) != 0);`, I do not know what the second part is yet (`-(__int64)((v4 & 0x20) != 0)`).
+
+Now we can connect to our local kernel debugger and take a look at `HalpClockTimer` as that is essentially the same as the Timer we find in `HalpTimerFindIdealClockSource`.
+
+```c
+    IdealClockSource = HalpTimerFindIdealClockSource();     // The Timer we get from HalpTimerFindIdealClockSource()
+    v6 = IdealClockSource;                                  // the timer we found gets assigned to v6
+    if ( !IdealClockSource )
+    {
+      HalpTimerLastProblem = 20;
+      return 0xC0000001;
+    }
+    if ( (int)HalpTimerInitialize(IdealClockSource) >= 0 )
+    {
+      *(_DWORD *)(v6 + 184) |= 4u;
+      HalpClockTimer = v6;                                  // HalpClockTimer is now set to the timer we found
+      goto LABEL_11;
+    }
+```
+I currently have useplatformtick set to yes, as we can inspect through windbg.
+
+It can be seen with in windbg
+```
+lkd> db HalpTimerPlatformClockSourceForced l1
+fffff803`eadc2558  01    
+```
+or it can be seen through the terminal with `bcdedit /enum {current}`
+```
+C:\Windows\System32>bcdedit /enum {current}
+
+Windows Boot Loader
+-------------------
+...
+debug                   Yes
+useplatformtick         Yes
+...
+```
+
