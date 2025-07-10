@@ -1,11 +1,15 @@
 # Research on the useage of USEPLATFORMTICK
 
+## 1. Initial Discovery and String Analysis
+
 Only useage of USEPLATFORMTICK in all of the system, done by dumping all strings of system32 use [strings2.exe](https://github.com/glmcdona/strings2) and finding USEPLATFORMTICK, no other code uses `USEPLATFORMTICK` besides ntoskrnl.exe, and ntkrla57.exe
 
 ```c
       if ( strstr(v3, "USEPLATFORMTICK") )          // if bcdedit /set USEPLATFORMTICK yes
         HalpTimerPlatformClockSourceForced = 1;     // then we set HalpTimerPlatformClockSourceForced = 1, now we can look for references for HalpTimerPlatformClockSourceForced
 ```
+
+## 2. Cross-Reference Analysis
 
 The only xreferences to `HalpTimerPlatformClockSourceForced` is the function called `HalpTimerFindIdealClockSource`.
 
@@ -18,9 +22,13 @@ Python>export_clean_xrefs.export_xrefs_pseudocode('HalpTimerFindIdealClockSource
 Python>export_each_func.export_xrefs_pseudocode('HalpTimerFindIdealClockSource', max_depth=10)
 ```
 
+## 3. Control Flow Analysis
+
 In `HalpTimerFindIdealClockSource`(link the file here) we can now look at the control flow and see that.
 
 If either `HalpHvCpuManager` or `HalpHvPresent` are both false, then we jump to LABEL_7, where we then try to find this timer `Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);`, whatever it might be. Then as it finds a suitable timer, it then jumps to LABEL_26, assigns `v4 = *(_DWORD *)(Timer + 0xE0);` if then `(v4 & 0x50) != 0` then we `return Timer & -(__int64)((v4 & 0x20) != 0);`, I do not know what the second part is yet (`-(__int64)((v4 & 0x20) != 0)`).
+
+### 3.1 Timer Assignment Flow
 
 Now we can connect to our local kernel debugger and take a look at `HalpClockTimer` as that is essentially the same as the Timer we find in `HalpTimerFindIdealClockSource`.
 
@@ -39,6 +47,11 @@ Now we can connect to our local kernel debugger and take a look at `HalpClockTim
       goto LABEL_11;
     }
 ```
+
+## 4. Runtime Investigation with WinDbg
+
+### 4.1 Verifying USEPLATFORMTICK Status
+
 I currently have useplatformtick set to yes, as we can inspect through windbg.
 
 It can be seen with in windbg
@@ -57,6 +70,8 @@ debug                   Yes
 useplatformtick         Yes
 ...
 ```
+
+### 4.2 Clock Timer Structure Analysis
 
 Now we look at `HalpClockTimer` through windbg:
 ```
@@ -80,6 +95,8 @@ nt!_HAL_CLOCK_TIMER_CONFIGURATION
    +0x018 MinIncrement     : 0
 ```
 
+### 4.3 Timer Resolution Impact
+
 By chaging the timer resolution of the system we can see that MaxIncrement changes, by going from 1ms to 0.5ms:
 ```
 lkd> dt _HAL_CLOCK_TIMER_CONFIGURATION fffff7e0`80016000
@@ -95,11 +112,17 @@ nt!_HAL_CLOCK_TIMER_CONFIGURATION
    +0x018 MinIncrement     : 0
 ```
 
+## 5. Capability Flag Analysis
+
+### 5.1 Extracting Timer Capability Data
+
 Now we get the memory address of `Timer + 0xE0` and dump it, so that we can see what the value of `v4` is:
 ```
 lkd> dd fffff7e0`80016000+0xE0 L1
 fffff7e0`800160e0  00210131
 ```
+
+### 5.2 Decoding the Capability Check Logic
 
 Now we return to the previous code:
 ```c
@@ -113,6 +136,8 @@ We now run a command to evaluate the expression:
 lkd> ? poi(fffff7e0`80016000+0xE0) & 0x50
 Evaluate expression: 16 = 00000000`00000010
 ```
+
+### 5.3 Understanding the Masking Operation
 
 The value evaluates to non-zero, so we continue to the next part:
 ```c
@@ -143,13 +168,18 @@ return Timer & 0x0000000000000000;
 // Which is:
 return 0;  // NULL pointer
 ```
+## 6. HalpFindTimer Function Analysis
 
-Can we maybe dig deeper into what HalpFindTimer does?
+### 6.1 Function Parameter Investigation
+
+Maybe we can dig deeper into what HalpFindTimer does?
 I will make some assumptions as to what each argument in `HalpFindTimer` does:
 ```c
 ULONG_PTR *__fastcall HalpFindTimer(int a1, int a2, int a3, int a4, char a5)
 a1 = Timer type/ID
 ```
+
+### 6.2 Timer Type Identification Method
 
 But how do we know what timer type/ID we are currently using?
 We can look at
@@ -157,6 +187,11 @@ We can look at
 && (!a1 || a1 == *((_DWORD *)v11 + 57))
 ```
 `v11` is the timer pointer and `*((_DWORD *)v11 + 57)`  means DWORD at offset `57*4`= `0xE4` bytes, which gives us the offset for timers we can look at, to see what type they have.
+
+## 7. System Timer Enumeration
+
+### 7.1 Registered Timer Overview
+
 
 Here we get some more information on the timers for our system:
 ```
@@ -166,6 +201,10 @@ lkd> dq HalpRegisteredTimers l4
 fffff803`eadc2580  fffff7e0`80001000 fffff7e0`80016000
 fffff803`eadc2590  fffff7e0`80013be0 00000008`00000001
 ```
+
+### 7.2 Timer Type Identification
+
+
 We can see that the the 2nd entry mathes our `HalpClockTimer` (`fffff7e080016000`), lets now take a look at these 3 different timers:
 ```
 lkd> dd fffff7e0`80001000+0xE4 l1
