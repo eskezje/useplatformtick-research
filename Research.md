@@ -331,7 +331,7 @@ We can now get the frequency of my HPET:
 
 
 
-later for vppt
+### later for vppt
 ```
 lkd> dq HalpVpptPhysicalTimer l1
 fffff803`eadc0760  fffff7e0`80013460
