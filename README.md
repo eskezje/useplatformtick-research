@@ -8,4 +8,4 @@ Forces the clock to be backed by a platform source, no synthetic timers are allo
 
 But i want to know more in depth what it means for "the clock to be backed by a platform source".
 
-You can find the research on the useage of USEPLATFORMTICK in the [Research.md](Research.md) file.
+You can find the research on the useage of USEPLATFORMTICK in the [Research.md](Research.md) file. (Very inexperinced, so please correct me if I am wrong)
