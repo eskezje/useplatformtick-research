@@ -250,7 +250,7 @@ CP  F/M/S Manufacturer  MHz PRCB Signature    MSR 8B Signature Features Architec
 So now we know that timer type 5 is TSC. What about timer type 12 and 15?
 
 If we look at the specs of HPET, we can see that it has a frequency of 10 MHz, which is the same as the one we see in `HalpClockTimer`
-And as for timer type 15, it is the LAPIC timer, we can find the frequency of that by using:
+And as for timer type 15, it is the ART timer, we can find the frequency of that by using:
 Refer to this for [CPUID](https://www.felixcloutier.com/x86/cpuid)
 ```c
 #include <intrin.h>
@@ -285,6 +285,78 @@ ECX (core crystal clock): 38400000 Hz
 ```
 tsc freq = `(core crystal clock * EBX) / EAX`
 
+
+## 7.3 Being smarter by looking at HalpTimerTraceTimingHardware
+We could also look at the HalpTimerTraceTimingHardware function to see all the different timers/counters there are, and look at their adresses.
+```
+HalpClockTimer
+HalpPerformanceCounter
+HalpAlwaysOnTimer
+HalpVpptPhysicalTimer
+HalpAlwaysOnCounter
+HalpWatchdogTimer
+HalpAuxiliaryCounter
+HalpStallCounter
+```
+Now lets look at them in windbg:
+```
+lkd> dq HalpClockTimer l1; dd poi(HalpClockTimer)+0xE4 l1
+fffff803`eadc2550  fffff7e0`80016000
+fffff7e0`800160e4  0000000c      // Timer type 12 VPPT
+
+lkd> dq HalpPerformanceCounter l1; dd poi(HalpPerformanceCounter)+0xE4 l1
+fffff803`eadc2430  fffff7e0`80001000
+fffff7e0`800010e4  00000005      // Timer type 5 TSC 
+
+lkd> dq HalpAlwaysOnTimer l1; dd poi(HalpAlwaysOnTimer)+0xE4 l1
+fffff803`eadc2568  00000000`00000000
+00000000`000000e4  ????????
+
+lkd> dq HalpVpptPhysicalTimer l1; dd poi(HalpVpptPhysicalTimer)+0xE4 l1
+fffff803`eadc0760  fffff7e0`80013460
+fffff7e0`80013544  00000003     // Timer type 3 HPET
+
+lkd> dq HalpAlwaysOnCounter l1; dd poi(HalpAlwaysOnCounter)+0xE4 l1
+fffff803`eadc25a0  fffff7e0`80013be0
+fffff7e0`80013cc4  0000000f     // Timer type 15 ART
+
+lkd> dq HalpWatchdogTimer l1; dd poi(HalpWatchdogTimer)+0xE4 l1
+fffff803`eadc2488  00000000`00000000
+00000000`000000e4  ????????
+
+lkd> dq HalpAuxiliaryCounter l1; dd poi(HalpAuxiliaryCounter)+0xE4 l1
+fffff803`eadc2590  fffff7e0`80013be0
+fffff7e0`80013cc4  0000000f    // Timer type 15 ART
+
+lkd> dq HalpStallCounter l1; dd poi(HalpStallCounter)+0xE4 l1
+fffff803`eadc2560  fffff7e0`80001000
+fffff7e0`800010e4  00000005   // Timer type 5 TSC
+```
+So it turns out that what i had previosuly thought was LAPIC, was actually intel ART instead, which refers to [\[v7,6/8\] x86: tsc: Always Running Timer (ART) correlated clocksource](https://patchwork.ozlabs.org/project/intel-wired-lan/patch/1455308729-6280-7-git-send-email-christopher.s.hall@intel.com/)
+
+I noticed this by looking at this
+```c
+      v13 = HalpAuxiliaryCounter;
+      PerformanceFrequency.QuadPart = 0LL;
+      if ( HalpAuxiliaryCounter )
+      {
+        if ( HalpTimerAuxiliaryClockEnabled )
+        {
+          if ( (*(_DWORD *)(HalpAuxiliaryCounter + 0xE0) & 0x6000) != 0 )
+          {
+            v13 = 0LL;
+            HalpAuxiliaryCounter = 0LL;
+```
+and looking at this `HalpArtDiscover()`, as we can see that sets the `HalpTimerAuxiliaryClockEnabled = 1`, which makde me believe that the intel ART was responsible for that timer:
+```c
+RtlInitUnicodeString(
+  &DestinationString,
+  L"VEN_vvvv&DEV_dddd&SUBVEN_ssss&SUBDEV_yyyy&REV_rrrr&INST_iiii&UID_uuuuuuuu");
+HalpTimerRegister((__int64)v3, &DestinationString, v0);
+HalpTimerAuxiliaryClockEnabled = 1;
+```
+In the end it ended up responding to the same thing as I showed in the beginning, which is the CPUID.15, which is the ART timer, as the ART post says: "On systems that support ART a new CPUID leaf (0x15) returns parameters
+“m” and “n” such that: TSC_value = (ART_value * m) / n + k [n >= 2]"
 
 ## 8. Investigating frequency of HPET (will be useful later)
 
@@ -427,3 +499,4 @@ fffff7e0`80013544  00000003                    // Timer type 3 = HPET
 lkd> ? poi (fffff7e0`80013460+0xC0)
 Evaluate expression: 19200000 = 00000000`0124f800   // 19.2 MHz (actual HPET frequency)
 ```
+
