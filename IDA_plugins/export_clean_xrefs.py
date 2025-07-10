@@ -1,6 +1,7 @@
+# export_clean_xrefs.py
 # Usage in IDA Python console:
-#   import export_xrefs
-#   export_xrefs.export_xrefs_pseudocode('YourFuncName', max_depth=3)
+#   import export_clean_xrefs
+#   export_clean_xrefs.export_xrefs_pseudocode('YourFuncName', max_depth=3)
 
 import os
 import idautils

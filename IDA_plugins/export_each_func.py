@@ -1,3 +1,4 @@
+# export_each_func.py
 # Usage: in IDA Python console:
 #   import export_each_func
 #   export_each_func.export_xrefs_pseudocode('YourRootFunc', max_depth=3)
