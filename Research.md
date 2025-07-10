@@ -248,3 +248,27 @@ CP  F/M/S Manufacturer  MHz PRCB Signature    MSR 8B Signature Features Architec
  0  6,183,1 GenuineIntel 3187 0000012f00000000 >0000012f00000000<351b3fff 0
 ```
 So now we know that timer type 5 is TSC. What about timer type 12 and 15?
+
+If we look at the specs of HPET, we can see that it has a frequency of 10 MHz, which is the same as the one we see in `HalpClockTimer`
+And as for timer type 15, it is the LAPIC timer, we can find the frequency of that by using:
+```c
+#include <intrin.h>
+#include <stdio.h>
+
+int main() {
+    int info[4];
+    __cpuid(info, 0x15);
+    printf("Core crystal freq from CPUID.15: %llu Hz\n", (unsigned long long)info[2]);
+    return 0;
+}
+```
+And here we can see me running it:
+```
+C:\Users\eske\Desktop\apic>cpuID.exe
+Core crystal freq from CPUID.15: 38400000 Hz
+```
+Which is essentially the same as what we saw for:
+```
+lkd> ? poi (fffff7e0`80013be0+0xC0)
+Evaluate expression: 38400006 = 00000000`0249f006
+```
