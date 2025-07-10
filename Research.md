@@ -319,6 +319,8 @@ We can now get the frequency of my HPET:
 
 
 
+By looking at the function `HalpHpetDiscover()` we can see there are multiple interesting things we can look at.
+
 
 
 
