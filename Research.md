@@ -405,9 +405,7 @@ Evaluate expression: 19200000 = 00000000`0124f800   // 19.2 MHz (actual HPET fre
 
 
 
-
-
-## 9. HalpTimerRegister
+## 10. HalpTimerRegister
 
 
 We can now take a look at `HalpTimerRegister`:
