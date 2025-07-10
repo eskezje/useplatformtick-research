@@ -7,8 +7,8 @@
 Only usage of USEPLATFORMTICK in all of the system, done by dumping all strings of system32 use [strings2.exe](https://github.com/glmcdona/strings2) and finding USEPLATFORMTICK, no other code uses `USEPLATFORMTICK` besides ntoskrnl.exe, and ntkrla57.exe
 
 ```c
-      if ( strstr(v3, "USEPLATFORMTICK") )          // if bcdedit /set USEPLATFORMTICK yes
-        HalpTimerPlatformClockSourceForced = 1;     // then we set HalpTimerPlatformClockSourceForced = 1, now we can look for references for HalpTimerPlatformClockSourceForced
+if ( strstr(v3, "USEPLATFORMTICK") )          // if bcdedit /set USEPLATFORMTICK yes
+  HalpTimerPlatformClockSourceForced = 1;     // then we set HalpTimerPlatformClockSourceForced = 1, now we can look for references for HalpTimerPlatformClockSourceForced
 ```
 
 ## 2. Cross-Reference Analysis
@@ -35,19 +35,19 @@ If either `HalpHvCpuManager` or `HalpHvPresent` are both false, then we jump to 
 Now we can connect to our local kernel debugger and take a look at `HalpClockTimer` as that is essentially the same as the Timer we find in `HalpTimerFindIdealClockSource`.
 
 ```c
-    IdealClockSource = HalpTimerFindIdealClockSource();     // The Timer we get from HalpTimerFindIdealClockSource()
-    v6 = IdealClockSource;                                  // the timer we found gets assigned to v6
-    if ( !IdealClockSource )
-    {
-      HalpTimerLastProblem = 20;
-      return 0xC0000001;
-    }
-    if ( (int)HalpTimerInitialize(IdealClockSource) >= 0 )
-    {
-      *(_DWORD *)(v6 + 184) |= 4u;
-      HalpClockTimer = v6;                                  // HalpClockTimer is now set to the timer we found
-      goto LABEL_11;
-    }
+IdealClockSource = HalpTimerFindIdealClockSource();     // The Timer we get from HalpTimerFindIdealClockSource()
+v6 = IdealClockSource;                                  // the timer we found gets assigned to v6
+if ( !IdealClockSource )
+{
+  HalpTimerLastProblem = 20;
+  return 0xC0000001;
+}
+if ( (int)HalpTimerInitialize(IdealClockSource) >= 0 )
+{
+  *(_DWORD *)(v6 + 184) |= 4u;
+  HalpClockTimer = v6;                                  // HalpClockTimer is now set to the timer we found
+  goto LABEL_11;
+}
 ```
 
 ## 4. Runtime Investigation with WinDbg
@@ -223,13 +223,13 @@ By the looks of it, timer type 5 appears to be TSC, as it seems to be the one th
 But lets take a look at this from `HalpTimerSaveProcessorFrequency`
 
 ```c
-  result = HalpFindTimer(7, 0, 0, 0, 1);
-  if ( result )
-  {
-    result = (ULONG_PTR *)(10000 * (unsigned int)((result[24] + 5000) / 0x2710));
-    Pcr->HalReserved[3] = (unsigned int)result;
-  }
-  return result;
+result = HalpFindTimer(7, 0, 0, 0, 1);
+if ( result )
+{
+  result = (ULONG_PTR *)(10000 * (unsigned int)((result[24] + 5000) / 0x2710));
+  Pcr->HalReserved[3] = (unsigned int)result;
+}
+return result;
 ```
 
 From the `HalpFindTimer` code, `result[24]` refers to offset `+0xC0 (24 * 8 = 192 decimal = 0xC0 hex)`
