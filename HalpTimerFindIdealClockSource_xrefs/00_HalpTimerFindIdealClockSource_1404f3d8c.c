@@ -28,7 +28,7 @@ LABEL_26:
   v2 = HalpTimerPlatformClockSourceForced;
   if ( !HalpTimerPlatformClockSourceForced )
   {
-    Timer = (__int64)HalpFindTimer(11, 0x220, 0, 80, 0);
+    Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);
     if ( Timer )
       goto LABEL_26;
     goto LABEL_5;
@@ -46,7 +46,7 @@ LABEL_7:
   Timer = (__int64)HalpFindTimer(3, 0x160, 0, 0, 0);
   if ( Timer )
     goto LABEL_26;
-  Timer = (__int64)HalpFindTimer(3, 0x30, 0, 256, 0);
+  Timer = (__int64)HalpFindTimer(3, 0x30, 0, 0x100, 0);
   if ( Timer )
     goto LABEL_26;
   Timer = (__int64)HalpFindTimer(3, 0x60, 0, 0xF00, 0);
