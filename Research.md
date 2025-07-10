@@ -358,6 +358,16 @@ HalpTimerAuxiliaryClockEnabled = 1;
 In the end it ended up responding to the same thing as I showed in the beginning, which is the CPUID.15, which is the ART timer, as the ART post says: "On systems that support ART a new CPUID leaf (0x15) returns parameters
 “m” and “n” such that: TSC_value = (ART_value * m) / n + k [n >= 2]"
 
+which kind of exactly was the same as as we already explored with this
+```bat
+C:\Users\eske\Desktop\apic>cpuID.exe
+EAX (denominator)       : 2
+EBX (numerator)         : 166
+ECX (core crystal clock): 38400000 Hz
+=> Computed TSC freq    : 3187200000 Hz
+```
+tsc freq = `(core crystal clock * EBX) / EAX`
+
 ## 8. Investigating frequency of HPET (will be useful later)
 
 ```
