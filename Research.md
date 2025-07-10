@@ -58,3 +58,89 @@ useplatformtick         Yes
 ...
 ```
 
+Now we look at `HalpClockTimer` through windbg:
+```
+lkd> dq HalpClockTimer l1
+fffff803`eadc2550  fffff7e0`80016000
+```
+
+After having looked around at the local types in IDA, i found thought it had the structure of `_HAL_CLOCK_TIMER_CONFIGURATION`:
+
+```
+lkd> dt _HAL_CLOCK_TIMER_CONFIGURATION fffff7e0`80016000
+nt!_HAL_CLOCK_TIMER_CONFIGURATION
+   +0x000 Flags            : 0x80 ''
+   +0x000 AlwaysOnTimer    : 0y0
+   +0x000 HighLatency      : 0y0
+   +0x000 PerCpuTimer      : 0y0
+   +0x000 DynamicTickSupported : 0y0
+   +0x004 KnownType        : 0xfffff803
+   +0x008 Capabilities     : 0x80013be0
+   +0x010 MaxIncrement     : 0x2710
+   +0x018 MinIncrement     : 0
+```
+
+By chaging the timer resolution of the system we can see that MaxIncrement changes, by going from 1ms to 0.5ms:
+```
+lkd> dt _HAL_CLOCK_TIMER_CONFIGURATION fffff7e0`80016000
+nt!_HAL_CLOCK_TIMER_CONFIGURATION
+   +0x000 Flags            : 0x80 ''
+   +0x000 AlwaysOnTimer    : 0y0
+   +0x000 HighLatency      : 0y0
+   +0x000 PerCpuTimer      : 0y0
+   +0x000 DynamicTickSupported : 0y0
+   +0x004 KnownType        : 0xfffff803
+   +0x008 Capabilities     : 0x80013be0
+   +0x010 MaxIncrement     : 0x1388
+   +0x018 MinIncrement     : 0
+```
+
+Now we get the memory address of `Timer + 0xE0` and dump it, so that we can see what the value of `v4` is:
+```
+lkd> dd fffff7e0`80016000+0xE0 L1
+fffff7e0`800160e0  00210131
+```
+
+Now we return to the previous code:
+```c
+v4 = *(_DWORD *)(Timer + 0xE0);  // v4 = 0x00210131
+if ( (v4 & 0x50) != 0 )
+    return Timer & -(__int64)((v4 & 0x20) != 0);
+```
+
+We now run a command to evaluate the expression:
+```
+lkd> ? poi(fffff7e0`80016000+0xE0) & 0x50
+Evaluate expression: 16 = 00000000`00000010
+```
+
+The value evaluates to non-zero, so we continue to the next part:
+```c
+return Timer & -(__int64)((v4 & 0x20) != 0);
+```
+
+We evaluate the expression:
+```
+lkd> ? poi(fffff7e0`80016000+0xE0) & 0x20
+Evaluate expression: 32 = 00000000`00000020
+lkd> ? (poi(fffff7e0`80016000+0xE0) & 0x20) != 0
+Evaluate expression: 1 = 00000000`00000001
+lkd> ? -((poi(fffff7e0`80016000+0xE0) & 0x20) != 0)
+Evaluate expression: -1 = ffffffff`ffffffff
+```
+
+So it ends up becoming:
+```c
+return Timer & -(__int64)((v4 & 0x20) != 0);
+// Becomes:
+return Timer & 0xFFFFFFFFFFFFFFFF;
+// Which is just:
+return Timer;  // The original timer pointer unchanged
+```
+if bit 0x20 was clear, it would have become:
+```c
+return Timer & 0x0000000000000000;
+// Which is:
+return 0;  // NULL pointer
+```
+
