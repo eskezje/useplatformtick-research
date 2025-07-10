@@ -6,3 +6,4 @@ Only useage of USEPLATFORMTICK in all of the system, done by dumping all strings
       if ( strstr(v3, "USEPLATFORMTICK") )          // if bcdedit /set USEPLATFORMTICK yes
         HalpTimerPlatformClockSourceForced = 1;     // then we set HalpTimerPlatformClockSourceForced = 1, now we can look for references for HalpTimerPlatformClockSourceForced
 ```
+
