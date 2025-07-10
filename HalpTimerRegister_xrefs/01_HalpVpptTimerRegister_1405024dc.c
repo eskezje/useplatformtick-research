@@ -26,16 +26,16 @@ __int64 __fastcall HalpVpptTimerRegister(_DWORD *a1, char a2)
   __int128 v25; // [rsp+D0h] [rbp+47h]
 
   if ( !a1 )
-    return 3221225485LL;
+    return 0xC000000DLL;
   if ( a2 && (a1[56] & 0x8000) == 0 )
-    return 3221225659LL;
+    return 0xC00000BBLL;
   if ( (a1[56] & 1) != 0 )
-    return 3221225659LL;
+    return 0xC00000BBLL;
   v4 = a1[56] & 0xB00;
   if ( !v4 )
-    return 3221225659LL;
+    return 0xC00000BBLL;
   if ( _InterlockedExchange(&HalpVpptRegistered, 1) )
-    return 3221227288LL;
+    return 0xC0000718LL;
   HalpVpptPhysicalTimerTarget = -1;
   *(_QWORD *)&HalpVpptPhysicalTimer = a1;
   ExtEnvInitializeSpinLock(&HalpVpptLock);
@@ -45,9 +45,9 @@ __int64 __fastcall HalpVpptTimerRegister(_DWORD *a1, char a2)
   v22 = 0;
   v8 = HalpVpptInitialize;
   v7[0] = 1;
-  v7[1] = 144;
+  v7[1] = 0x90;
   v10 = HalpVpptArmTimer;
-  v14 = 64;
+  v14 = 0x40;
   v11 = HalpVpptStop;
   v9 = HalpVpptAcknowledgeInterrupt;
   v5 = a1[56] & 0x8000;
@@ -60,7 +60,7 @@ __int64 __fastcall HalpVpptTimerRegister(_DWORD *a1, char a2)
   v18 = a1[22];
   v17 = a1[21];
   v24 = 0LL;
-  LODWORD(v24) = -1;
+  LODWORD(v24) = 0xFFFFFFFF;
   v12 = &v23;
   v23 = 0LL;
   v25 = 0LL;
