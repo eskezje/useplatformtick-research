@@ -1,5 +1,101 @@
-/* Function: HalpTimerInitSystem @ 0x1404f42e0 (call depth 2) */
+/* Call path: HalpFindTimer <- HalpTscSynchronization <- HalpTimerInitSystem */
 
+/* ===== Function: HalpFindTimer @ 0x1405008d0 ===== */
+ULONG_PTR *__fastcall HalpFindTimer(int a1, int a2, int a3, int a4, char a5)
+{
+  ULONG_PTR *v9; // r8
+  ULONG_PTR *v10; // rdx
+  ULONG_PTR *v11; // rsi
+  ULONG_PTR *v12; // rbp
+  ULONG_PTR *v13; // r10
+  ULONG_PTR *v14; // r14
+  int v15; // ecx
+  int v16; // r11d
+  ULONG_PTR v17; // rax
+  ULONG_PTR v18; // rcx
+
+  if ( !(_DWORD)HalpRegisteredTimerCount )
+    return 0LL;
+  v9 = (ULONG_PTR *)HalpRegisteredTimers;
+  v10 = 0LL;
+  while ( v9 != &HalpRegisteredTimers )
+  {
+    v11 = v9;
+    v12 = v9;
+    v13 = v9;
+    v14 = v10;
+    v9 = (ULONG_PTR *)*v9;
+    v15 = *((_DWORD *)v11 + 46);
+    if ( ((v15 & 0x100) == 0 || (a5 & 4) == 0)
+      && (v15 & 1) == 0
+      && ((v15 & 4) == 0 || (a5 & 1) != 0)
+      && (!a1 || a1 == *((_DWORD *)v11 + 57)) )
+    {
+      v16 = *((_DWORD *)v13 + 56);
+      if ( (a2 & v16) == a2 && (v16 & a3) == 0 && (!a4 || (v16 & a4) != 0) )
+      {
+        if ( v10 )
+        {
+          v17 = v11[24];
+          v18 = v10[24];
+          if ( (a5 & 2) != 0 )
+          {
+            v10 = v12;
+            if ( v17 >= v18 )
+              v10 = v14;
+          }
+          else if ( v17 > v18 )
+          {
+            v10 = v13;
+          }
+        }
+        else
+        {
+          v10 = v13;
+        }
+      }
+    }
+  }
+  if ( (a5 & 4) != 0 )
+  {
+    if ( v10 )
+      *((_DWORD *)v10 + 46) |= 0x100u;
+  }
+  return v10;
+}
+
+/* ===== Function: HalpTscSynchronization @ 0x140503080 ===== */
+int __fastcall HalpTscSynchronization(char a1, __int64 a2)
+{
+  ULONG_PTR *Timer; // rax
+  __int64 v5; // rdx
+  ULONG_PTR Context[2]; // [rsp+30h] [rbp-48h] BYREF
+  __int128 v8; // [rsp+40h] [rbp-38h]
+  __int128 v9; // [rsp+50h] [rbp-28h]
+
+  *(_OWORD *)Context = 0LL;
+  v8 = 0LL;
+  v9 = 0LL;
+  if ( qword_140FC03C8 || (unsigned __int8)HviIsXboxNanovisorPresent() )
+  {
+    Timer = HalpFindTimer(5, 0, 0, 0, 1);
+    if ( Timer && (Timer[28] & 0x6000) == 0 )
+      *((_DWORD *)Timer + 46) |= 0x20u;
+  }
+  else
+  {
+    LODWORD(Timer) = KeQueryActiveProcessorCountEx(0xFFFFu);
+    if ( (unsigned int)Timer >= 2 )
+    {
+      LOBYTE(v5) = a1;
+      HalpTscInitializeSynchronizationContext(Context, v5, a2, 0LL);
+      LODWORD(Timer) = KeIpiGenericCall(HalpTscSynchronizationWorker, (ULONG_PTR)Context);
+    }
+  }
+  return (int)Timer;
+}
+
+/* ===== Function: HalpTimerInitSystem @ 0x1404f42e0 ===== */
 __int64 __fastcall HalpTimerInitSystem(int a1, __int64 a2, __int64 a3)
 {
   unsigned int inited; // ebx
@@ -188,3 +284,4 @@ LABEL_24:
   }
   return inited;
 }
+

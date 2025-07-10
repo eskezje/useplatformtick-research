@@ -1,92 +1,91 @@
-/* Call path: HalpTimerFindIdealClockSource <- HalpTimerSelectRoles <- HalpInitializeTimers <- HalpTimerInitSystem */
+/* Call path: HalpFindTimer <- HalpTimerFindBestAlwaysOnTimer <- HalpTimerSelectRoles <- HalpInitializeTimers <- HalpTimerInitSystem */
 
-/* ===== Function: HalpTimerFindIdealClockSource @ 0x1404f3d8c ===== */
-__int64 HalpTimerFindIdealClockSource()
+/* ===== Function: HalpFindTimer @ 0x1405008d0 ===== */
+ULONG_PTR *__fastcall HalpFindTimer(int a1, int a2, int a3, int a4, char a5)
 {
-  char v0; // si
-  __int64 v1; // rbx
-  char v2; // di
-  __int64 Timer; // rax
-  int v4; // ecx
+  ULONG_PTR *v9; // r8
+  ULONG_PTR *v10; // rdx
+  ULONG_PTR *v11; // rsi
+  ULONG_PTR *v12; // rbp
+  ULONG_PTR *v13; // r10
+  ULONG_PTR *v14; // r14
+  int v15; // ecx
+  int v16; // r11d
+  ULONG_PTR v17; // rax
+  ULONG_PTR v18; // rcx
 
-  v0 = HalpHvPresent;
-  v1 = 0LL;
-  if ( !HalpHvPresent || !HalpHvCpuManager )
+  if ( !(_DWORD)HalpRegisteredTimerCount )
+    return 0LL;
+  v9 = (ULONG_PTR *)HalpRegisteredTimers;
+  v10 = 0LL;
+  while ( v9 != &HalpRegisteredTimers )
   {
-LABEL_5:
-    v2 = HalpTimerPlatformClockSourceForced;
-    if ( HalpTimerPlatformClockSourceForced )
-      goto LABEL_7;
-    Timer = (__int64)HalpFindTimer(8, 0x60, 0x6000, 0xF00, 0);
-    if ( !Timer )
-      goto LABEL_7;
-LABEL_26:
-    v4 = *(_DWORD *)(Timer + 0xE0);
-    if ( (v4 & 0x50) != 0 )
-      return Timer & -(__int64)((v4 & 0x20) != 0);
-    return v1;
+    v11 = v9;
+    v12 = v9;
+    v13 = v9;
+    v14 = v10;
+    v9 = (ULONG_PTR *)*v9;
+    v15 = *((_DWORD *)v11 + 46);
+    if ( ((v15 & 0x100) == 0 || (a5 & 4) == 0)
+      && (v15 & 1) == 0
+      && ((v15 & 4) == 0 || (a5 & 1) != 0)
+      && (!a1 || a1 == *((_DWORD *)v11 + 57)) )
+    {
+      v16 = *((_DWORD *)v13 + 56);
+      if ( (a2 & v16) == a2 && (v16 & a3) == 0 && (!a4 || (v16 & a4) != 0) )
+      {
+        if ( v10 )
+        {
+          v17 = v11[24];
+          v18 = v10[24];
+          if ( (a5 & 2) != 0 )
+          {
+            v10 = v12;
+            if ( v17 >= v18 )
+              v10 = v14;
+          }
+          else if ( v17 > v18 )
+          {
+            v10 = v13;
+          }
+        }
+        else
+        {
+          v10 = v13;
+        }
+      }
+    }
   }
-  v2 = HalpTimerPlatformClockSourceForced;
-  if ( !HalpTimerPlatformClockSourceForced )
+  if ( (a5 & 4) != 0 )
   {
-    Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);
-    if ( Timer )
-      goto LABEL_26;
-    goto LABEL_5;
+    if ( v10 )
+      *((_DWORD *)v10 + 46) |= 0x100u;
   }
-LABEL_7:
-  Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);
-  if ( Timer )
-    goto LABEL_26;
-  if ( !v2 && !v0 && HalpProfileInterface != &DefaultProfileInterface )
+  return v10;
+}
+
+/* ===== Function: HalpTimerFindBestAlwaysOnTimer @ 0x1405011e0 ===== */
+ULONG_PTR *__fastcall HalpTimerFindBestAlwaysOnTimer(char a1)
+{
+  ULONG_PTR *result; // rax
+
+  if ( a1 )
   {
-    Timer = (__int64)HalpFindTimer(0, 0x21, 0x6000, 0xF00, 0);
-    if ( Timer )
-      goto LABEL_26;
+    result = HalpFindTimer(0, 32770, 24576, 0, 0);
+    if ( !result )
+      return HalpFindTimer(0, 32770, 28416, 0, 1);
   }
-  Timer = (__int64)HalpFindTimer(3, 0x160, 0, 0, 0);
-  if ( Timer )
-    goto LABEL_26;
-  Timer = (__int64)HalpFindTimer(3, 0x30, 0, 0x100, 0);
-  if ( Timer )
-    goto LABEL_26;
-  Timer = (__int64)HalpFindTimer(3, 0x60, 0, 0xF00, 0);
-  if ( Timer )
-    goto LABEL_26;
-  Timer = (__int64)HalpFindTimer(3, 0x30, 0, 0xF00, 0);
-  if ( Timer )
-    goto LABEL_26;
-  Timer = (__int64)HalpFindTimer(0, 0x8060, 0x6000, 0xF00, 0);
-  if ( Timer )
+  else
   {
-    if ( *(_QWORD *)(Timer + 0xC0) >= 2000uLL )
-      goto LABEL_26;
+    result = HalpFindTimer(0, 32800, 24576, 3840, 0);
+    if ( !result )
+    {
+      result = HalpFindTimer(0, 32832, 24576, 3840, 0);
+      if ( !result )
+        return HalpFindTimer(0, 32784, 24576, 3840, 0);
+    }
   }
-  Timer = (__int64)HalpFindTimer(0, 0x8030, 0x6000, 0xF00, 0);
-  if ( Timer )
-  {
-    if ( *(_QWORD *)(Timer + 0xC0) >= 2000uLL )
-      goto LABEL_26;
-  }
-  Timer = (__int64)HalpFindTimer(0, 0x260, 0xE000, 0, 0);
-  if ( Timer )
-  {
-    if ( *(_QWORD *)(Timer + 0xC0) >= 2000uLL )
-      goto LABEL_26;
-  }
-  Timer = (__int64)HalpFindTimer(0, 0x60, 0xE000, 0xF00, 0);
-  if ( Timer )
-  {
-    if ( *(_QWORD *)(Timer + 0xC0) >= 2000uLL )
-      goto LABEL_26;
-  }
-  Timer = (__int64)HalpFindTimer(0, 0x30, 0xE000, 0xF00, 0);
-  if ( Timer )
-  {
-    if ( *(_QWORD *)(Timer + 0xC0) >= 2000uLL )
-      goto LABEL_26;
-  }
-  return v1;
+  return result;
 }
 
 /* ===== Function: HalpTimerSelectRoles @ 0x1404f4b88 ===== */
@@ -488,14 +487,14 @@ __int64 __fastcall HalpTimerInitSystem(int a1, __int64 a2, __int64 a3)
       xHalUnmaskInterrupt_0[0] = (__int64 (__fastcall *)())HalpTimerClockArm;
       xHalTimerWatchdogStop_3[0] = (__int64 (__fastcall *)())HalpTimerGetClockConfiguration;
       ext_ms_win_ntos_tm_l1_1_0_TmIsKTMCommitCoordinator_0[0] = HalpTimerOnlyClockInterruptPending;
-      off_140E00960 = (__int64 (__fastcall *)())HalpTimerQueryCycleCounter;
+      off_140E00960 = HalpTimerQueryCycleCounter;
       PdcCreateWatchdogAroundClientCall_0 = HalpTimerGetReferencePage;
       xKdEnumerateDebuggingDevices_2[0] = HalpTimerConvertAuxiliaryCounterToPerformanceCounter;
       xKdEnumerateDebuggingDevices_1[0] = HalpTimerConvertPerformanceCounterToAuxiliaryCounter;
       xKdEnumerateDebuggingDevices_3[0] = HalpTimerQueryAuxiliaryCounterFrequency;
       HalpInitializeTimers(v21);
       HalpTimerSaveProcessorFrequency(v22);
-      ((void (*)(void))HalpTimerInitializeClock)();
+      HalpTimerInitializeClock();
       KiProfileIrql = 15;
       v23 = HalpTimerInitializeProfiling();
       inited = v23;
@@ -560,7 +559,7 @@ __int64 __fastcall HalpTimerInitSystem(int a1, __int64 a2, __int64 a3)
           Context[0] = KeQueryActiveProcessorCountEx(0xFFFFu);
           Context[1] = 0LL;
           v29 = 5;
-          KeIpiGenericCall((PKIPI_BROADCAST_WORKER)HalpTimerMeasureProcessorsWorker, (ULONG_PTR)Context);
+          KeIpiGenericCall(HalpTimerMeasureProcessorsWorker, (ULONG_PTR)Context);
         }
         if ( *(_DWORD *)(HalpPerformanceCounter + 228) == 5 )
         {
