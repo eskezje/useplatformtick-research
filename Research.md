@@ -2,7 +2,7 @@
 
 ## 1. Initial Discovery and String Analysis
 
-Only useage of USEPLATFORMTICK in all of the system, done by dumping all strings of system32 use [strings2.exe](https://github.com/glmcdona/strings2) and finding USEPLATFORMTICK, no other code uses `USEPLATFORMTICK` besides ntoskrnl.exe, and ntkrla57.exe
+Only usage of USEPLATFORMTICK in all of the system, done by dumping all strings of system32 use [strings2.exe](https://github.com/glmcdona/strings2) and finding USEPLATFORMTICK, no other code uses `USEPLATFORMTICK` besides ntoskrnl.exe, and ntkrla57.exe
 
 ```c
       if ( strstr(v3, "USEPLATFORMTICK") )          // if bcdedit /set USEPLATFORMTICK yes
@@ -284,3 +284,5 @@ ECX (core crystal clock): 38400000 Hz
 => Computed TSC freq    : 3187200000 Hz
 ```
 tsc freq = `(core crystal clock * EBX) / EAX`
+
+
