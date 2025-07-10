@@ -176,4 +176,3 @@ lkd> dd fffff7e0`80013be0+0xE4 l1
 fffff7e0`80013cc4  0000000f
 ```
 We can see that the first timer has type `5`, the second timer has type `12` and the third timer has type `15`, and the one we are using is `12`.
-
