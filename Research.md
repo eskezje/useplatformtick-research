@@ -347,6 +347,7 @@ I noticed this by looking at this
             v13 = 0LL;
             HalpAuxiliaryCounter = 0LL;
 ```
+
 and looking at this `HalpArtDiscover()`, as we can see that sets the `HalpTimerAuxiliaryClockEnabled = 1`, which makde me believe that the intel ART was responsible for that timer:
 ```c
 RtlInitUnicodeString(
@@ -510,3 +511,10 @@ lkd> ? poi (fffff7e0`80013460+0xC0)
 Evaluate expression: 19200000 = 00000000`0124f800   // 19.2 MHz (actual HPET frequency)
 ```
 
+## 10. The bigger picture
+You are probably very confused, just like I am, but we now need to break down what Vppt actually means for the system.
+
+In `HalpVppyTimerRegister()` we had:
+```c
+
+```
