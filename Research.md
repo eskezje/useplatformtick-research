@@ -286,7 +286,7 @@ ECX (core crystal clock): 38400000 Hz
 tsc freq = `(core crystal clock * EBX) / EAX`
 
 
-## 8. Investigating frequency of HPET
+## 8. Investigating frequency of HPET (will be useful later)
 
 ```
 [63 … 32] = Main Counter Period, in femtoseconds
@@ -312,6 +312,121 @@ We can now get the frequency of my HPET:
 
 
 
+## 9. VPPT (Virtual Processor Performance Timer) Discovery
+
+### 9.1 investigating HalpTimerRegister
+
+If we take a look at `HalpTimerRegister`, we can see multiple things getting saved in the pointers:
+
+```c
+*(_QWORD *)(v13 + 0xC0) = *(_QWORD *)(a1 + 0x68);    // Copy frequency from offset 0x68
+*(_OWORD *)(v13 + 0x68) = *(_OWORD *)(a1 + 8);       // Copy function pointers from offset 8-24
+*(_OWORD *)(v13 + 0x78) = *(_OWORD *)(a1 + 0x18);    // Copy more function pointers
+*(_OWORD *)(v13 + 0x88) = *(_OWORD *)(a1 + 0x28);    // Copy more function pointers  
+*(_OWORD *)(v13 + 0x98) = *(_OWORD *)(a1 + 0x38);    // Copy more function pointers
+```
+
+### 9.2 Timer Type 12 Analysis
+
+From our analysis, we discovered that timer type 12 is a VPPT:
+
+```
+lkd> dq fffff7e0`80016000+0x68 l4
+fffff7e0`80016068  fffff803`ea302380 00000000`00000000
+fffff7e0`80016078  fffff803`ea132e50 fffff803`ea302240
+
+lkd> u fffff803`ea302380 l1
+nt!HalpVpptInitialize:
+fffff803`ea302380 837910ff        cmp     dword ptr [rcx+10h],0FFFFFFFFh
+lkd> u fffff803`ea132e50 l1
+nt!HalpVpptAcknowledgeInterrupt:
+fffff803`ea132e50 48895c2410      mov     qword ptr [rsp+10h],rbx
+lkd> u fffff803`ea302240 l1
+nt!HalpVpptArmTimer:
+fffff803`ea302240 48895c2410      mov     qword ptr [rsp+10h],rbx
+```
+
+We can also see it in this function `HalpTimerInitializeVpptClockTimer`, if timertype is 12, then we initialize `HalpVpptInitializePhysicalTimer()` which shows that it is a Vppt Timer.
+```c
+__int64 HalpTimerInitializeVpptClockTimer()
+{
+  __int64 result; // rax
+
+  result = HalpClockTimer;
+  if ( *(_DWORD *)(HalpClockTimer + 0xE4) == 12 )
+    return HalpVpptInitializePhysicalTimer();
+  return result;
+}
+```
+
+### 9.3 VPPT Registration Process
+
+The VPPT timer registration occurs in `HalpTimerSelectRoles` when certain conditions are met:
+
+```c
+v14 = HalpClockTimer;  // Original timer from HalpTimerFindIdealClockSource
+if ( (*(_DWORD *)(HalpClockTimer + 0xE0) & 1) == 0 )  // Timer lacks VPPT support
+{
+    if ( (int)HalpVpptTimerRegister(HalpClockTimer, 0LL) < 0 )
+    {
+        HalpClockTimer = 0LL;  // Registration failed
+    }
+    else
+    {
+        v15 = HalpFindTimer(12, 32, 0, 3840, 0);  // Create VPPT wrapper (type 12)
+        HalpClockTimer = (ULONG_PTR)v15;          // Replace original with VPPT
+    }
+}
+```
+
+### 9.4 Looking closer at HalpVpptTimerRegister
+
+
+
+
+### 9.5 VPPT Physical Timer Relationship
+
+VPPT virtualizes an underlying platform timer:
+
+```
+lkd> dd HalpVpptRegistered l1
+fffff803`eadc0720  00000001                    // VPPT is active
+
+lkd> dq HalpVpptPhysicalTimer l1
+fffff803`eadc0760  fffff7e0`80013460           // Points to original HPET timer
+
+lkd> dd fffff7e0`80013460+0xE4 l1
+fffff7e0`80013544  00000003                    // Timer type 3 = HPET
+
+lkd> ? poi (fffff7e0`80013460+0xC0)
+Evaluate expression: 19200000 = 00000000`0124f800   // 19.2 MHz (actual HPET frequency)
+```
+
+## 10. Complete Timer Architecture Understanding
+
+### 10.1 Timer Type Summary
+
+Based on our research, the timer types are:
+- **Timer Type 5**: TSC (3,187 MHz) - Time Stamp Counter
+- **Timer Type 12**: VPPT-virtualized platform timer (10 MHz standardized frequency)
+- **Timer Type 15**: LAPIC Timer (38.4 MHz) - Local APIC Timer
+- **Timer Type 3**: HPET main counter (19.2 MHz) - High Precision Event Timer
+
+### 10.2 USEPLATFORMTICK Implementation
+
+With `USEPLATFORMTICK=yes`, Windows:
+
+1. **Selects platform-based timers** through `HalpTimerFindIdealClockSource`
+2. **Registers VPPT virtualization** if the timer supports it
+3. **Maintains platform timing source** while providing optimized access
+
+The final result: Your system uses a **VPPT-virtualized HPET** as the clock timer, satisfying the platform tick requirement while optimizing for virtualized environments.
+
+### 10.3 Frequency Relationships
+
+- **HPET Hardware**: 19.2 MHz (calculated from period: 1,000,000,000,000,000 / 52,083,333 = 19,200,000.1229 Hz)
+- **VPPT Interface**: 10 MHz (standardized virtual frequency)
+- **Frequency Conversion**: VPPT handles translation between the virtual 10 MHz interface and the actual 19.2 MHz HPET hardware
 
 
 
@@ -319,16 +434,43 @@ We can now get the frequency of my HPET:
 
 
 
-By looking at the function `HalpHpetDiscover()` we can see there are multiple interesting things we can look at.
 
 
 
 
 
+## 9. HalpTimerRegister
 
 
+We can now take a look at `HalpTimerRegister`:
 
+```c
+*(_QWORD *)(v13 + 0xC0) = *(_QWORD *)(a1 + 0x68);    // Copy frequency from offset 0x68
+*(_OWORD *)(v13 + 0x68) = *(_OWORD *)(a1 + 8);       // Copy function pointers from offset 8-24
+*(_OWORD *)(v13 + 0x78) = *(_OWORD *)(a1 + 0x18);    // Copy more function pointers
+*(_OWORD *)(v13 + 0x88) = *(_OWORD *)(a1 + 0x28);    // Copy more function pointers  
+*(_OWORD *)(v13 + 0x98) = *(_OWORD *)(a1 + 0x38);    // Copy more function pointers
+```
 
+So to our timer type 12.
+```
+lkd> dq fffff7e0`80016000+0x68 l4
+fffff7e0`80016068  fffff803`ea302380 00000000`00000000
+fffff7e0`80016078  fffff803`ea132e50 fffff803`ea302240
+
+lkd> u fffff803`ea302380 l1
+nt!HalpVpptInitialize:
+fffff803`ea302380 837910ff        cmp     dword ptr [rcx+10h],0FFFFFFFFh
+lkd> u fffff803`ea132e50 l1
+nt!HalpVpptAcknowledgeInterrupt:
+fffff803`ea132e50 48895c2410      mov     qword ptr [rsp+10h],rbx
+lkd> u fffff803`ea302240 l1
+nt!HalpVpptArmTimer:
+fffff803`ea302240 48895c2410      mov     qword ptr [rsp+10h],rbx
+```
+So we can see that the function pointers are `HalpVpptInitialize`, `HalpVpptAcknowledgeInterrupt` and `HalpVpptArmTimer`.
+
+And as for our other timer type 3, which showed out to be HPET:
 
 
 
