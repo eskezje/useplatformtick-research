@@ -176,3 +176,36 @@ lkd> dd fffff7e0`80013be0+0xE4 l1
 fffff7e0`80013cc4  0000000f
 ```
 We can see that the first timer has type `5`, the second timer has type `12` and the third timer has type `15`, and the one we are using is `12`.
+
+By the looks of it, timer type 5 appears to be TSC, as it seems to be the one that is used everywhere for tsc.
+
+But lets take a look at this from `HalpTimerSaveProcessorFrequency`
+
+```c
+  result = HalpFindTimer(7, 0, 0, 0, 1);
+  if ( result )
+  {
+    result = (ULONG_PTR *)(10000 * (unsigned int)((result[24] + 5000) / 0x2710));
+    Pcr->HalReserved[3] = (unsigned int)result;
+  }
+  return result;
+```
+
+From the `HalpFindTimer` code, `result[24]` refers to offset `+0xC0 (24 * 8 = 192 decimal = 0xC0 hex)`
+
+lets test this in windbg:
+```
+lkd> ? poi (fffff7e0`80001000+0xC0)
+Evaluate expression: 3187201731 = 00000000`bdf8d6c3
+lkd> ? poi (fffff7e0`80016000+0xC0)
+Evaluate expression: 10000000 = 00000000`00989680
+lkd> ? poi (fffff7e0`80013be0+0xC0)
+Evaluate expression: 38400006 = 00000000`0249f006
+```
+So the first timer we see with type 5 looks to be the TSC timer, as it has a value of `3187201731` which is the TSC frequency in Hz, just for quick demonstration we can see it has 3187 MHz, which is essentially the same, or else you can refer to [my other repo](https://github.com/eskezje/time):
+```
+lkd> !cpuinfo
+CP  F/M/S Manufacturer  MHz PRCB Signature    MSR 8B Signature Features ArchitectureClass
+ 0  6,183,1 GenuineIntel 3187 0000012f00000000 >0000012f00000000<351b3fff 0
+```
+So now we know that timer type 5 is TSC. What about timer type 12 and 15?
