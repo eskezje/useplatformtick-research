@@ -9,6 +9,7 @@ import idaapi
 import ida_funcs
 import ida_hexrays
 import ida_lines
+import hashlib
 
 def export_path(path, outdir, counter):
     """
@@ -17,6 +18,16 @@ def export_path(path, outdir, counter):
     # Derive filename key from function names
     names = [nm for nm, _, _ in path]
     key = "_".join(names)
+    
+    # Handle long filenames by truncating and adding hash
+    max_filename_len = 200  # Leave room for extension and counter
+    if len(key) > max_filename_len:
+        # Create hash of full path for uniqueness
+        hash_obj = hashlib.md5(key.encode('utf-8'))
+        hash_str = hash_obj.hexdigest()[:8]
+        # Truncate and append hash
+        key = key[:max_filename_len-9] + "_" + hash_str
+    
     count = counter.get(key, 0) + 1
     counter[key] = count
     fname = f"{key}{'' if count==1 else f'_{count}'}.c"

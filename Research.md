@@ -676,3 +676,73 @@ Timer Type 3 (HPET Hardware - 19.2 MHz)
     ↓
 Physical HPET Chip
 ```
+
+
+
+## 11. I am still not done yet.
+I still want to look at what happens when USEPLATFORMTICK is set to no.
+There is also a byproduct of using useplaytformtick no, you can only set your timer resolution in 33ns intervals.
+
+I restart my pc and then we can look at all the timers again:
+
+```
+lkd> dq HalpClockTimer l1; dd poi(HalpClockTimer)+0xE4 l1
+fffff807`c69c2550  fffff7d1`40013a18
+fffff7d1`40013afc  00000007             // What is this timer type 7?
+
+lkd> dq HalpPerformanceCounter l1; dd poi(HalpPerformanceCounter)+0xE4 l1
+fffff807`c69c2430  fffff7d1`40001000
+fffff7d1`400010e4  00000005             // Timer type 5 TSC
+
+lkd> dq HalpAlwaysOnTimer l1; dd poi(HalpAlwaysOnTimer)+0xE4 l1
+fffff807`c69c2568  00000000`00000000
+00000000`000000e4  ????????
+
+lkd> dq HalpVpptPhysicalTimer l1; dd poi(HalpVpptPhysicalTimer)+0xE4 l1
+fffff807`c69c0760  00000000`00000000
+00000000`000000e4  ????????
+
+lkd> dq HalpAlwaysOnCounter l1; dd poi(HalpAlwaysOnCounter)+0xE4 l1
+fffff807`c69c25a0  fffff7d1`40013be0
+fffff7d1`40013cc4  0000000f             // Timer type 15 ART
+
+lkd> dq HalpWatchdogTimer l1; dd poi(HalpWatchdogTimer)+0xE4 l1
+fffff807`c69c2488  00000000`00000000
+00000000`000000e4  ????????
+
+lkd> dq HalpAuxiliaryCounter l1; dd poi(HalpAuxiliaryCounter)+0xE4 l1
+fffff807`c69c2590  fffff7d1`40013be0
+fffff7d1`40013cc4  0000000f             // Timer type 15 ART
+
+lkd> dq HalpStallCounter l1; dd poi(HalpStallCounter)+0xE4 l1
+fffff807`c69c2560  fffff7d1`40001000
+fffff7d1`400010e4  00000005             // Timer type 5 TSC
+```
+
+Now we can see that our adresses have changed and that HalpClockTimer now timer type 7, based on what microsoft says, it should try to look for Local APIC timers first
+
+[<img src="Media/find_timers.png" width="700"/>](Media/find_timers.png)
+
+Lets investigate this timer type 7 some more.
+We could find the timer freqiencies by looking at offset +0xC0, so lets do that:
+```
+lkd> ? poi (fffff7d1`40013a18+0xC0)
+Evaluate expression: 300001 = 00000000`000493e1
+lkd> ? poi (fffff7d1`40013be0+0xC0)
+Evaluate expression: 38400000 = 00000000`0249f000
+```
+I also just took the frequency of the ART, since it is relevant for this.
+Lets look at `38400000/300001`=127.9995 (approx 128). 
+
+This lines up with APIC timer specs from intel
+
+[Intel SDM 3A Goto page 408](https://kib.kiev.ua/x86docs/Intel/SDMs/253668-083.pdf)
+
+The Local APIC’s Divide Configuration Register (DCR) can select one of eight divisors: 1, 2, 4, 8, 16, 32, 64, or 128. In our case it is 128, so the APIC timer frequency is `38400000/128 = 300000` Hz, which is exactly what we saw.
+
+This already answers the question of why we can only set the timer resolution in 33ns intervals, because 1/300000 = 3.3333e-6 seconds = 3.3333 microseconds = 33.3333 nanoseconds.
+```math
+f_{\rm tick} = \frac{\text{CoreCrystalFreq}}{128}
+             = \frac{38.4\text{ MHz}}{128}
+             = 300 000\text{ Hz}
+\```
