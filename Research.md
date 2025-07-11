@@ -28,7 +28,7 @@ Python>export_each_func.export_xrefs_pseudocode('HalpTimerFindIdealClockSource',
 
 In `HalpTimerFindIdealClockSource` (link the file here), we can analyze the control flow:
 
-If either `HalpHvCpuManager` or `HalpHvPresent` are both false, then we jump to LABEL_7, where we then try to find this timer `Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);`, whatever it might be. Then as it finds a suitable timer, it then jumps to LABEL_26, assigns `v4 = *(_DWORD *)(Timer + 0xE0);` if then `(v4 & 0x50) != 0` then we `return Timer & -(__int64)((v4 & 0x20) != 0);`, I do not know what the second part is yet (`-(__int64)((v4 & 0x20) != 0)`).
+If either `HalpHvCpuManager` or `HalpHvPresent` are false, then we jump to LABEL_7, where we then try to find this timer `Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);`, whatever it might be. Once it finds a suitable timer, it then jumps to LABEL_26, assigns `v4 = *(_DWORD *)(Timer + 0xE0);` if then `(v4 & 0x50) != 0` then we `return Timer & -(__int64)((v4 & 0x20) != 0);`, I do not know what the second part is yet (`-(__int64)((v4 & 0x20) != 0)`).
 
 ### 3.1 Timer Assignment Flow
 
@@ -55,9 +55,9 @@ if ( (int)HalpTimerInitialize(IdealClockSource) >= 0 )
 
 ### 4.1 Verifying USEPLATFORMTICK Status
 
-I currently have useplatformtick set to yes, as we can inspect through windbg.
+I currently have useplatformtick set to yes, as we can verify through WinDbg.
 
-It can be seen with in windbg
+It can be seen with in WinDbg
 ```
 lkd> db HalpTimerPlatformClockSourceForced l1
 fffff803`eadc2558  01    
@@ -214,7 +214,7 @@ fffff803`eadc2590  fffff7e0`80013be0 00000008`00000001
 ### 7.2 Timer Type Identification
 
 
-We can see that the the 2nd entry mathes our `HalpClockTimer` (`fffff7e080016000`), lets now take a look at these 3 different timers:
+We can see that the 2nd entry matches our `HalpClockTimer` (`fffff7e080016000`), let's now take a look at these 3 different timers:
 ```
 lkd> dd fffff7e0`80001000+0xE4 l1
 fffff7e0`800010e4  00000005
@@ -251,7 +251,7 @@ Evaluate expression: 10000000 = 00000000`00989680
 lkd> ? poi (fffff7e0`80013be0+0xC0)
 Evaluate expression: 38400006 = 00000000`0249f006
 ```
-The first timer with type 5 appears to be the TSC timer, as it has a value of `3187201731`, which is the TSC frequency in Hz. For quick demonstration, we can see it has 3187 MHz, which is essentially the same frequency. You can also refer to [my other repo](https://github.com/eskezje/time) for more details:
+The first timer with type 5 appears to be the TSC timer, as it has a value of `3187201731`, which is the TSC frequency in Hz. For a quick demonstration, we can see it has a frequency of 3187 MHz, which is essentially the same frequency. You can also refer to [my other repo](https://github.com/eskezje/time) for more details:
 ```
 lkd> !cpuinfo
 CP  F/M/S Manufacturer  MHz PRCB Signature    MSR 8B Signature Features ArchitectureClass
@@ -302,7 +302,7 @@ tsc freq = `(core crystal clock * EBX) / EAX`
 
 
 ## 7.3 Being smarter by looking at HalpTimerTraceTimingHardware
-We could also look at the HalpTimerTraceTimingHardware function to see all the different timers/counters there are, and look at their adresses.
+We could also look at the HalpTimerTraceTimingHardware function to see all the different timers/counters there are, and look at their addresses.
 
 [HalpTimerTraceTimingHardware.c](HalpTimerTraceTimingHardware.c#L38)
 ```
@@ -315,7 +315,7 @@ HalpWatchdogTimer
 HalpAuxiliaryCounter
 HalpStallCounter
 ```
-Now lets look at them in windbg:
+Now let's look at them in WinDbg:
 ```
 lkd> dq HalpClockTimer l1; dd poi(HalpClockTimer)+0xE4 l1
 fffff803`eadc2550  fffff7e0`80016000
@@ -349,7 +349,7 @@ lkd> dq HalpStallCounter l1; dd poi(HalpStallCounter)+0xE4 l1
 fffff803`eadc2560  fffff7e0`80001000
 fffff7e0`800010e4  00000005   // Timer type 5 TSC
 ```
-So it turns out that what i had previosuly thought was LAPIC, was actually intel ART instead, which refers to [\[v7,6/8\] x86: tsc: Always Running Timer (ART) correlated clocksource](https://patchwork.ozlabs.org/project/intel-wired-lan/patch/1455308729-6280-7-git-send-email-christopher.s.hall@intel.com/)
+So it turns out that what I had previously thought was LAPIC, was actually intel ART instead, which refers to [\[v7,6/8\] x86: tsc: Always Running Timer (ART) correlated clocksource](https://patchwork.ozlabs.org/project/intel-wired-lan/patch/1455308729-6280-7-git-send-email-christopher.s.hall@intel.com/)
 
 I noticed this by looking at:
 
@@ -367,7 +367,7 @@ I noticed this by looking at:
             HalpAuxiliaryCounter = 0LL;
 ```
 
-and looking at this `HalpArtDiscover()`, as we can see that sets the `HalpTimerAuxiliaryClockEnabled = 1`, which makde me believe that the intel ART was responsible for that timer:
+and looking at this `HalpArtDiscover()`, as we can see that sets the `HalpTimerAuxiliaryClockEnabled = 1`, which made me believe that the intel ART was responsible for that timer:
 
 [HalpArtDiscover.c](HalpArtDiscover.c#L33)
 ```c
@@ -377,7 +377,7 @@ RtlInitUnicodeString(
 HalpTimerRegister((__int64)v3, &DestinationString, v0);
 HalpTimerAuxiliaryClockEnabled = 1;
 ```
-In the end it ended up responding to the same thing as I showed in the beginning, which is the CPUID.15, which is the ART timer, as the ART post says: "On systems that support ART a new CPUID leaf (0x15) returns parameters
+In the end, it corresponds to what I demonstrated earlier, which is the CPUID.15, which is the ART timer, as the ART post says: "On systems that support ART a new CPUID leaf (0x15) returns parameters
 “m” and “n” such that: TSC_value = (ART_value * m) / n + k [n >= 2]"
 
 which kind of exactly was the same as as we already explored with this
@@ -396,20 +396,20 @@ tsc freq = `(core crystal clock * EBX) / EAX`
 [63 … 32] = Main Counter Period, in femtoseconds
 [31 …  0] = Capability bits (vendor ID, # timers, 64-bit support, etc.)
 ```
-We can get our HPET physical address by using the symbol `HalpHpetPhysicalAddress`, but thats not the one we want, we want the HPET base address(virual address), which is `HalpHpetBaseAddress`.
+We can get our HPET physical address by using the symbol `HalpHpetPhysicalAddress`, but that's not the one we want, we want the HPET base address (virtual address), which is `HalpHpetBaseAddress`.
 ```
 lkd> dq HalpHpetBaseAddress l1
 fffff803`ead8e000  fffff7e0`80014000
 ```
 
-Now we can dum the memory at that adress:
+Now we can dump the memory at that address:
 ```
 lkd> dq fffff7e0`80014000 l1
 fffff7e0`80014000  031aba85`8086a701
 ```
-So the upper 32 bits are `0x031aba85` and the lower 32 bits are `0x8086a701`, which is the vendor ID, which is Intel, and the lower 32 bits are the capability bits.
+So the upper 32 bits are `0x031aba85` and lhe lower 32 bits `0x8086a701` contain the vendor ID (Intel) and capability bits.
 
-`0x031aba85` in decimal is `52083333` in femtoseconds, In seconds that would be equivilent to `52083333*1e-15s = 52.083333ns`
+`0x031aba85` in decimal is `52083333` in femtoseconds, In seconds that would be equivalent to `52083333*1e-15s = 52.083333ns`
 
 We can now get the frequency of my HPET:
 `Frequency(Hz)=1000000000000000/52083333=19200000.1229`
@@ -468,7 +468,7 @@ __int64 HalpTimerInitializeVpptClockTimer()
 
 ### 9.3 VPPT Registration Process
 
-The VPPT timer registration occurs in `HalpTimerSelectRoles` when certain conditions are met:
+The VPPT timer registration ooccurs in `HalpTimerSelectRoles` when specific conditions are met:
 
 [HalpTimerSelectRoles.c](HalpTimerFindIdealClockSource_xrefs/01_HalpTimerSelectRoles_1404f4b88.c#L123)
 ```c
