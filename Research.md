@@ -794,3 +794,71 @@ What I really want to know is how that timer gets initialized to HalpClockTime.
 
 *Discovery Phase:* During system initialization, [HalpApicTimerDiscover.c](HalpTimerRegisterBuiltinPluginsCommon/HalpApicDiscover.c) is called as a part of [HalpTimerRegisterBuiltinPluginsCommon.c](HalpTimerRegisterBuiltinPluginsCommon/HalpTimerRegisterBuiltinPluginsCommon.c)
 
+*Memory allocation:* In HalpApicTimerDiscover(), the APIC timer characteristics are hardcoded:
+```c
+v29 = 7;           // Timer type = 7
+v26 = 0x863;       // Timer capabilities = 0x863
+```
+
+*Registration:* HalpTimerRegister() allocates heap memory via HalpMmAllocateMemoryInternal() and copies these values:
+```c
+*(_DWORD *)(v13 + 0xE4) = 7;      // Timer type at offset +0xE4
+*(_DWORD *)(v13 + 0xE0) = 0x863;  // Capabilities at offset +0xE0
+```
+
+*Global List:* The timer structure gets linked into the global HalpRegisteredTimers linked list where HalpFindTimer can locate it.
+
+We see in [debug.txt](debug.txt)
+
+```
+Platform forced: 0  (HalpTimerPlatformClockSourceForced = 0)
+
+1. Hypervisor Timer Search: HalpFindTimer(Type=8, Req=0x60, Forbidden=0x6000, Optional=0xf00)
+   Result: 0000000000000000 (FAILED)
+
+2. Platform Timer Search: HalpFindTimer(Type=11, Req=0x220, Forbidden=0x0, Optional=0x50)  
+   Result: 0000000000000000 (FAILED)
+
+3. Profile Interface Search: HalpFindTimer(Type=0, Req=0x21, Forbidden=0x6000, Optional=0xf00)
+   Result: fffff7a9c0035600 (SUCCESS - Timer Type 7 found!)
+```
+
+The Profile Interface Search succeeds because timer type 7's capabilities (0x863) perfectly match the search criteria:
+```c
+HalpFindTimer(0, 0x21, 0x6000, 0xF00, 0)
+```
+
+Capability Analysis for Timer Type 7 (0x863):
+Timer Type: 0 (any timer type)
+Required capabilities: 0x21 -> 0x863 & 0x21 = 0x21  (bits 0 and 5 present)
+Forbidden capabilities: 0x6000 -> 0x863 & 0x6000 = 0x0  (no forbidden bits 13-14)
+Optional capabilities: 0xF00 -> 0x863 & 0xF00 = 0x800  (has optional bit 11)
+
+After finding timer type 7, the system performs the critical capability check:
+```c
+*** ENTERING LABEL_26 - CAPABILITY CHECK ***
+Timer found: fffff7a9c0035600
+Timer type: 7, Caps: 0x863
+
+v4 = *(_DWORD *)(Timer + 0xE0);  // v4 = 0x863
+if ( (v4 & 0x50) != 0 )          // 0x863 & 0x50 = 0x40 != 0
+    return Timer;                // Timer type 7 is returned
+```
+
+Our debug output shows `Capability check (caps & 0x50): 0x40`
+Since `0x40 != 0`, the capability check passes and timer type 7 is returned.
+
+```
+*** FINAL RESULT FROM HalpTimerFindIdealClockSource ***
+Returning: fffff7a9c0035600
+Timer type: 7, Caps: 0x863
+
+*** ASSIGNMENT TO HalpClockTimer ***
+Assigning timer fffff7a9c0035600 to HalpClockTimer
+Timer type: 7, Caps: 0x863
+
+*** VERIFICATION ***
+HalpClockTimer now contains: fffff7a9c0035600
+Timer type: 7
+```
+
