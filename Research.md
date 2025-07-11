@@ -1,10 +1,10 @@
-# Research on the useage of USEPLATFORMTICK
+# Research on the usage of USEPLATFORMTICK
 
 [Discord server where I do research](https://discord.gg/YdYVSBbZWY)
 
 ## 1. Initial Discovery and String Analysis
 
-Only usage of USEPLATFORMTICK in all of the system, done by dumping all strings of system32 use [strings2.exe](https://github.com/glmcdona/strings2) and finding USEPLATFORMTICK, no other code uses `USEPLATFORMTICK` besides ntoskrnl.exe, and ntkrla57.exe
+The only usage of USEPLATFORMTICK in the entire system was found by dumping all strings of system32 using [strings2.exe](https://github.com/glmcdona/strings2) and searching for USEPLATFORMTICK. No other code uses `USEPLATFORMTICK` besides ntoskrnl.exe and ntkrla57.exe.
 
 ```c
 if ( strstr(v3, "USEPLATFORMTICK") )          // if bcdedit /set USEPLATFORMTICK yes
@@ -13,9 +13,9 @@ if ( strstr(v3, "USEPLATFORMTICK") )          // if bcdedit /set USEPLATFORMTICK
 
 ## 2. Cross-Reference Analysis
 
-The only xreferences to `HalpTimerPlatformClockSourceForced` is the function called `HalpTimerFindIdealClockSource`.
+The only cross-references to `HalpTimerPlatformClockSourceForced` are found in the function `HalpTimerFindIdealClockSource`.
 
-Now we can use the IDA plugins to look at references to `HalpTimerFindIdealClockSource`.
+We can use IDA plugins to analyze references to `HalpTimerFindIdealClockSource`:
 
 ```py
 Python>import export_clean_xrefs
@@ -26,7 +26,7 @@ Python>export_each_func.export_xrefs_pseudocode('HalpTimerFindIdealClockSource',
 
 ## 3. Control Flow Analysis
 
-In `HalpTimerFindIdealClockSource`(link the file here) we can now look at the control flow and see that.
+In `HalpTimerFindIdealClockSource` (link the file here), we can analyze the control flow:
 
 If either `HalpHvCpuManager` or `HalpHvPresent` are both false, then we jump to LABEL_7, where we then try to find this timer `Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);`, whatever it might be. Then as it finds a suitable timer, it then jumps to LABEL_26, assigns `v4 = *(_DWORD *)(Timer + 0xE0);` if then `(v4 & 0x50) != 0` then we `return Timer & -(__int64)((v4 & 0x20) != 0);`, I do not know what the second part is yet (`-(__int64)((v4 & 0x20) != 0)`).
 
@@ -75,13 +75,13 @@ useplatformtick         Yes
 
 ### 4.2 Clock Timer Structure Analysis
 
-Now we look at `HalpClockTimer` through windbg:
+Now let's examine `HalpClockTimer` through WinDbg:
 ```
 lkd> dq HalpClockTimer l1
 fffff803`eadc2550  fffff7e0`80016000
 ```
 
-After having looked around at the local types in IDA, i found thought it had the structure of `_HAL_CLOCK_TIMER_CONFIGURATION`:
+After examining the local types in IDA, I found it has the structure of `_HAL_CLOCK_TIMER_CONFIGURATION`:
 
 ```
 lkd> dt _HAL_CLOCK_TIMER_CONFIGURATION fffff7e0`80016000
@@ -99,7 +99,7 @@ nt!_HAL_CLOCK_TIMER_CONFIGURATION
 
 ### 4.3 Timer Resolution Impact
 
-By chaging the timer resolution of the system we can see that MaxIncrement changes, by going from 1ms to 0.5ms:
+By changing the system's timer resolution we can see that `MaxIncrement` changes from `0x2710` to `0x1388`. These values are stored in 100‑ns units, so `0x2710` equals **1 ms** and `0x1388` equals **0.5 ms**:
 ```
 lkd> dt _HAL_CLOCK_TIMER_CONFIGURATION fffff7e0`80016000
 nt!_HAL_CLOCK_TIMER_CONFIGURATION
@@ -118,7 +118,7 @@ nt!_HAL_CLOCK_TIMER_CONFIGURATION
 
 ### 5.1 Extracting Timer Capability Data
 
-Now we get the memory address of `Timer + 0xE0` and dump it, so that we can see what the value of `v4` is:
+Now let's get the memory address of `Timer + 0xE0` and dump it to see the value of `v4`:
 ```
 lkd> dd fffff7e0`80016000+0xE0 L1
 fffff7e0`800160e0  00210131
@@ -126,14 +126,14 @@ fffff7e0`800160e0  00210131
 
 ### 5.2 Decoding the Capability Check Logic
 
-Now we return to the previous code:
+Now let's return to the previous code:
 ```c
 v4 = *(_DWORD *)(Timer + 0xE0);  // v4 = 0x00210131
 if ( (v4 & 0x50) != 0 )
     return Timer & -(__int64)((v4 & 0x20) != 0);
 ```
 
-We now run a command to evaluate the expression:
+We evaluate the expression using WinDbg:
 ```
 lkd> ? poi(fffff7e0`80016000+0xE0) & 0x50
 Evaluate expression: 16 = 00000000`00000010
@@ -164,7 +164,7 @@ return Timer & 0xFFFFFFFFFFFFFFFF;
 // Which is just:
 return Timer;  // The original timer pointer unchanged
 ```
-if bit 0x20 was clear, it would have become:
+If bit 0x20 was clear, it would become:
 ```c
 return Timer & 0x0000000000000000;
 // Which is:
@@ -183,19 +183,19 @@ a1 = Timer type/ID
 
 ### 6.2 Timer Type Identification Method
 
-But how do we know what timer type/ID we are currently using?
-We can look at
+How do we determine what timer type/ID we are currently using?
+We can examine this code:
 ```c
 && (!a1 || a1 == *((_DWORD *)v11 + 57))
 ```
-`v11` is the timer pointer and `*((_DWORD *)v11 + 57)`  means DWORD at offset `57*4`= `0xE4` bytes, which gives us the offset for timers we can look at, to see what type they have.
+`v11` is the timer pointer and `*((_DWORD *)v11 + 57)` means DWORD at offset `57*4 = 0xE4` bytes, which gives us the offset for timers we can examine to see their type.
 
 ## 7. System Timer Enumeration
 
 ### 7.1 Registered Timer Overview
 
 
-Here we get some more information on the timers for our system:
+Here we get more information about the timers for our system:
 ```
 lkd> dd HalpRegisteredTimerCount l1
 fffff803`eadc259c  00000008
@@ -216,11 +216,11 @@ fffff7e0`800160e4  0000000c
 lkd> dd fffff7e0`80013be0+0xE4 l1
 fffff7e0`80013cc4  0000000f
 ```
-We can see that the first timer has type `5`, the second timer has type `12` and the third timer has type `15`, and the one we are using is `12`.
+We can see that the first timer has type `5`, the second timer has type `12`, and the third timer has type `15`. The one we are using is type `12`.
 
-By the looks of it, timer type 5 appears to be TSC, as it seems to be the one that is used everywhere for tsc.
+Timer type 5 appears to be TSC, as it seems to be used everywhere for TSC functionality.
 
-But lets take a look at this from `HalpTimerSaveProcessorFrequency`
+Let's examine this from `HalpTimerSaveProcessorFrequency`:
 
 ```c
 result = HalpFindTimer(7, 0, 0, 0, 1);
@@ -232,9 +232,9 @@ if ( result )
 return result;
 ```
 
-From the `HalpFindTimer` code, `result[24]` refers to offset `+0xC0 (24 * 8 = 192 decimal = 0xC0 hex)`
+From the `HalpFindTimer` code, `result[24]` refers to offset `+0xC0` (24 * 8 = 192 decimal = 0xC0 hex).
 
-lets test this in windbg:
+Let's test this in WinDbg:
 ```
 lkd> ? poi (fffff7e0`80001000+0xC0)
 Evaluate expression: 3187201731 = 00000000`bdf8d6c3
@@ -243,15 +243,18 @@ Evaluate expression: 10000000 = 00000000`00989680
 lkd> ? poi (fffff7e0`80013be0+0xC0)
 Evaluate expression: 38400006 = 00000000`0249f006
 ```
-So the first timer we see with type 5 looks to be the TSC timer, as it has a value of `3187201731` which is the TSC frequency in Hz, just for quick demonstration we can see it has 3187 MHz, which is essentially the same, or else you can refer to [my other repo](https://github.com/eskezje/time):
+The first timer with type 5 appears to be the TSC timer, as it has a value of `3187201731`, which is the TSC frequency in Hz. For quick demonstration, we can see it has 3187 MHz, which is essentially the same frequency. You can also refer to [my other repo](https://github.com/eskezje/time) for more details:
 ```
 lkd> !cpuinfo
 CP  F/M/S Manufacturer  MHz PRCB Signature    MSR 8B Signature Features ArchitectureClass
  0  6,183,1 GenuineIntel 3187 0000012f00000000 >0000012f00000000<351b3fff 0
 ```
-So now we know that timer type 5 is TSC. What about timer type 12 and 15?
+So now we know that timer type 5 is TSC. What about timer types 12 and 15?
 
-If we look at the specs of HPET, we can see that it has a frequency of 10 MHz, which is the same as the one we see in `HalpClockTimer`
+If we look at the HPET specifications, we can see that it has a frequency of 10 MHz, which matches what we see in `HalpClockTimer`.
+
+If we examine the HPET registers, the main counter period is roughly `52 ns`, which corresponds to about `19.2 MHz`.  The `10 MHz` value reported in `HalpClockTimer` comes from VPPT's fixed virtual interface, not the physical HPET clock.
+
 And as for timer type 15, it is the ART timer, we can find the frequency of that by using:
 Refer to this for [CPUID](https://www.felixcloutier.com/x86/cpuid)
 ```c
