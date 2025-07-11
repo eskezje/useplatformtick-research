@@ -34,6 +34,7 @@ If either `HalpHvCpuManager` or `HalpHvPresent` are both false, then we jump to 
 
 Now we can connect to our local kernel debugger and take a look at `HalpClockTimer` as that is essentially the same as the Timer we find in `HalpTimerFindIdealClockSource`.
 
+[HalpTimerSelectRoles.c](HalpTimerFindIdealClockSource_xrefs/01_HalpTimerSelectRoles_1404f4b88.c#L47)
 ```c
 IdealClockSource = HalpTimerFindIdealClockSource();     // The Timer we get from HalpTimerFindIdealClockSource()
 v6 = IdealClockSource;                                  // the timer we found gets assigned to v6
@@ -127,6 +128,8 @@ fffff7e0`800160e0  00210131
 ### 5.2 Decoding the Capability Check Logic
 
 Now let's return to the previous code:
+
+[HalpTimerFindIdealClockSource.c](HalpTimerFindIdealClockSource_xrefs/00_HalpTimerFindIdealClockSource_1404f3d8c.c#L23)
 ```c
 v4 = *(_DWORD *)(Timer + 0xE0);  // v4 = 0x00210131
 if ( (v4 & 0x50) != 0 )
@@ -176,6 +179,8 @@ return 0;  // NULL pointer
 
 Maybe we can dig deeper into what HalpFindTimer does?
 I will make some assumptions as to what each argument in `HalpFindTimer` does:
+
+[HalpFindTimer.c](HalpFindTimer_xrefs/00_HalpFindTimer_1405008d0.c)
 ```c
 ULONG_PTR *__fastcall HalpFindTimer(int a1, int a2, int a3, int a4, char a5)
 a1 = Timer type/ID
@@ -185,6 +190,8 @@ a1 = Timer type/ID
 
 How do we determine what timer type/ID we are currently using?
 We can examine this code:
+
+[HalpFindTimer.c](HalpFindTimer_xrefs/00_HalpFindTimer_1405008d0.c#L32)
 ```c
 && (!a1 || a1 == *((_DWORD *)v11 + 57))
 ```
@@ -222,6 +229,7 @@ Timer type 5 appears to be TSC, as it seems to be used everywhere for TSC functi
 
 Let's examine this from `HalpTimerSaveProcessorFrequency`:
 
+[HalpTimerSaveProcessorFrequency.c](HalpFindTimer_xrefs/01_HalpTimerSaveProcessorFrequency_140503f9c.c#L19)
 ```c
 result = HalpFindTimer(7, 0, 0, 0, 1);
 if ( result )
@@ -257,6 +265,8 @@ If we examine the HPET registers, the main counter period is roughly `52 ns`, wh
 
 And as for timer type 15, it is the ART timer, we can find the frequency of that by using:
 Refer to this for [CPUID](https://www.felixcloutier.com/x86/cpuid)
+
+[cpuID.c](cpuID.c)
 ```c
 #include <intrin.h>
 #include <stdio.h>
@@ -293,6 +303,8 @@ tsc freq = `(core crystal clock * EBX) / EAX`
 
 ## 7.3 Being smarter by looking at HalpTimerTraceTimingHardware
 We could also look at the HalpTimerTraceTimingHardware function to see all the different timers/counters there are, and look at their adresses.
+
+[HalpTimerTraceTimingHardware.c](HalpTimerTraceTimingHardware.c#L38)
 ```
 HalpClockTimer
 HalpPerformanceCounter
@@ -339,7 +351,9 @@ fffff7e0`800010e4  00000005   // Timer type 5 TSC
 ```
 So it turns out that what i had previosuly thought was LAPIC, was actually intel ART instead, which refers to [\[v7,6/8\] x86: tsc: Always Running Timer (ART) correlated clocksource](https://patchwork.ozlabs.org/project/intel-wired-lan/patch/1455308729-6280-7-git-send-email-christopher.s.hall@intel.com/)
 
-I noticed this by looking at this
+I noticed this by looking at:
+
+[HalpTimerInitSystem.c](HalpFindTimer_xrefs/02_HalpTimerInitSystem_1404f42e0.c#147)
 ```c
       v13 = HalpAuxiliaryCounter;
       PerformanceFrequency.QuadPart = 0LL;
@@ -354,6 +368,8 @@ I noticed this by looking at this
 ```
 
 and looking at this `HalpArtDiscover()`, as we can see that sets the `HalpTimerAuxiliaryClockEnabled = 1`, which makde me believe that the intel ART was responsible for that timer:
+
+[HalpArtDiscover.c](HalpArtDiscover.c#L33)
 ```c
 RtlInitUnicodeString(
   &DestinationString,
@@ -406,6 +422,7 @@ We can now get the frequency of my HPET:
 
 If we take a look at `HalpTimerRegister`, we can see multiple things getting saved in the pointers:
 
+[HalpTimerRegister.c](HalpTimerRegister_xrefs/00_HalpTimerRegister_140519b7c.c#L83)
 ```c
 *(_QWORD *)(v13 + 0xC0) = *(_QWORD *)(a1 + 0x68);    // Copy frequency from offset 0x68
 *(_OWORD *)(v13 + 0x68) = *(_OWORD *)(a1 + 8);       // Copy function pointers from offset 8-24
@@ -435,6 +452,8 @@ fffff803`ea302240 48895c2410      mov     qword ptr [rsp+10h],rbx
 ```
 
 We can also see it in this function `HalpTimerInitializeVpptClockTimer`, if timertype is 12, then we initialize `HalpVpptInitializePhysicalTimer()` which shows that it is a Vppt Timer.
+
+[HalpTimerInitializeVpptClockTimer.c](HalpTimerInitializeVpptClockTimer.c)
 ```c
 __int64 HalpTimerInitializeVpptClockTimer()
 {
@@ -451,6 +470,7 @@ __int64 HalpTimerInitializeVpptClockTimer()
 
 The VPPT timer registration occurs in `HalpTimerSelectRoles` when certain conditions are met:
 
+[HalpTimerSelectRoles.c](HalpTimerFindIdealClockSource_xrefs/01_HalpTimerSelectRoles_1404f4b88.c#L123)
 ```c
 v14 = HalpClockTimer;  // Original timer from HalpTimerFindIdealClockSource
 if ( (*(_DWORD *)(HalpClockTimer + 0xE0) & 1) == 0 )  // Timer lacks VPPT support
@@ -469,6 +489,8 @@ if ( (*(_DWORD *)(HalpClockTimer + 0xE0) & 1) == 0 )  // Timer lacks VPPT suppor
 
 ### 9.4 Looking closer at HalpVpptTimerRegister
 
+
+[HalpVpptTimerRegister.c](HalpTimerRegister_xrefs/01_HalpVpptTimerRegister_1405024dc.c)
 ```c
 __int64 __fastcall HalpVpptTimerRegister(_DWORD *a1, char a2)
 {    
