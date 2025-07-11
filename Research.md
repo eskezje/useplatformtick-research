@@ -746,3 +746,46 @@ f_{\rm tick} = \frac{\text{CoreCrystalFreq}}{128}
              = \frac{38.4\text{ MHz}}{128}
              = 300,000\text{ Hz}
 ```
+
+The question now lingers, how did we get to this timer type 7? in the `HalpTimerFindIdealClockSource` function we never check for timer 7, so it couldnt possibly be initialized there.
+As I search around, the only places I can find HalpFindTimer(7, ...) is in the function `HalpTimerSaveProcessorFrequency`:
+
+[HalpTimerSaveProcessorFrequency.c](HalpFindTimer_xrefs/01_HalpTimerSaveProcessorFrequency_140503f9c.c#L19)
+```c
+result = HalpFindTimer(7, 0, 0, 0, 1);
+if ( result )
+{
+  result = (ULONG_PTR *)(10000 * (unsigned int)((result[24] + 5000) / 10000));
+  Pcr->HalReserved[3] = (unsigned int)result;
+}
+return result;
+```
+
+This computes to this: (not really useful for us lol)
+
+```math
+\begin{align}
+\text{Rounded Frequency} &= 10000 \times \left\lfloor \frac{300001 + 5000}{10000} \right\rfloor \\
+&= 10000 \times \left\lfloor \frac{305001}{10000} \right\rfloor \\
+&= 10000 \times 30 \\
+&= 300,000\text{ Hz}
+\end{align}
+```
+
+Now lets see that it actually gets stored with WinDbg:
+```
+lkd> !pcr 0
+KPCR for Processor 0 at fffff80754225000:
+...
+lkd> dt nt!_KPCR fffff80754225000 HalReserved[3]
+   +0x0c0 HalReserved    : [3] 0x493e0
+lkd> ? 0x493e0
+Evaluate expression: 300000 = 00000000`000493e0
+```
+
+This is the only place where `HalpFindTimer(7, a2, a3, a4, a5)` gets called, so how does it get initialized?
+
+Lets go all the way back to the source of where everything with timers start `HalpTimerInitSystem`:
+
+[HalpTimerInitSystem.c](HalpFindTimer_xrefs/02_HalpTimerInitSystem_1404f42e0.c#L47)
+
