@@ -100,7 +100,7 @@ nt!_HAL_CLOCK_TIMER_CONFIGURATION
 
 ### 4.3 Timer Resolution Impact
 
-By changing the system's timer resolution we can see that `MaxIncrement` changes from `0x2710` to `0x1388`. These values are stored in 100‑ns units, so `0x2710` equals **1 ms** and `0x1388` equals **0.5 ms**:
+By changing the system's timer resolution we can see that `MaxIncrement` changes from `0x2710` to `0x1388`. These values are stored in $100\text{ns}$ units, so `0x2710` equals **1 ms** and `0x1388` equals **0.5 ms**:
 ```
 lkd> dt _HAL_CLOCK_TIMER_CONFIGURATION fffff7e0`80016000
 nt!_HAL_CLOCK_TIMER_CONFIGURATION
@@ -195,7 +195,7 @@ We can examine this code:
 ```c
 && (!a1 || a1 == *((_DWORD *)v11 + 57))
 ```
-`v11` is the timer pointer and `*((_DWORD *)v11 + 57)` means DWORD at offset `57*4 = 0xE4` bytes, which gives us the offset for timers we can examine to see their type.
+`v11` is the timer pointer and `*((_DWORD *)v11 + 57)` means DWORD at offset $57 \times 4 = 0xE4$ bytes, which gives us the offset for timers we can examine to see their type.
 
 ## 7. System Timer Enumeration
 
@@ -240,7 +240,7 @@ if ( result )
 return result;
 ```
 
-From the `HalpFindTimer` code, `result[24]` refers to offset `+0xC0` (24 * 8 = 192 decimal = 0xC0 hex).
+From the `HalpFindTimer` code, `result[24]` refers to offset $+0xC0$ ($24 \times 8 = 192$ decimal $= 0xC0$ hex).
 
 Let's test this in WinDbg:
 ```
@@ -251,7 +251,7 @@ Evaluate expression: 10000000 = 00000000`00989680
 lkd> ? poi (fffff7e0`80013be0+0xC0)
 Evaluate expression: 38400006 = 00000000`0249f006
 ```
-The first timer with type 5 appears to be the TSC timer, as it has a value of `3187201731`, which is the TSC frequency in Hz. For a quick demonstration, we can see it has a frequency of 3187 MHz, which is essentially the same frequency. You can also refer to [my other repo](https://github.com/eskezje/time) for more details:
+The first timer with type 5 appears to be the TSC timer, as it has a value of `3187201731`, which is the TSC frequency in Hz. For a quick demonstration, we can see it has a frequency of $3187\text{ MHz}$, which is essentially the same frequency. You can also refer to [my other repo](https://github.com/eskezje/time) for more details:
 ```
 lkd> !cpuinfo
 CP  F/M/S Manufacturer  MHz PRCB Signature    MSR 8B Signature Features ArchitectureClass
@@ -259,9 +259,9 @@ CP  F/M/S Manufacturer  MHz PRCB Signature    MSR 8B Signature Features Architec
 ```
 So now we know that timer type 5 is TSC. What about timer types 12 and 15?
 
-If we look at the HPET specifications, we can see that it has a frequency of 10 MHz, which matches what we see in `HalpClockTimer`.
+If we look at the HPET specifications, we can see that it has a frequency of $10\text{ MHz}$, which matches what we see in `HalpClockTimer`.
 
-If we examine the HPET registers, the main counter period is roughly `52 ns`, which corresponds to about `19.2 MHz`.  The `10 MHz` value reported in `HalpClockTimer` comes from VPPT's fixed virtual interface, not the physical HPET clock.
+If we examine the HPET registers, the main counter period is roughly $52\text{ ns}$, which corresponds to about $19.2\text{ MHz}$.  The $10\text{ MHz}$ value reported in `HalpClockTimer` comes from VPPT's fixed virtual interface, not the physical HPET clock.
 
 And as for timer type 15, it is the ART timer, we can find the frequency of that by using:
 Refer to this for [CPUID](https://www.felixcloutier.com/x86/cpuid)
@@ -289,7 +289,7 @@ lkd> ? poi (fffff7e0`80013be0+0xC0)
 Evaluate expression: 38400006 = 00000000`0249f006
 ```
 
-A quick short breakdown of what the `38400000` means, it is the processor’s nominal core‐crystal clock frequency in hertz:
+A quick short breakdown of what the $38400000$ means, it is the processor's nominal core‐crystal clock frequency in hertz:
 That means that TSC is driven off this crystal, and multiplied by a small integer ratio (EBX/EAX) that  the CPU advertises in the same CPUID leaf. (see the file in the repo)
 ```bat
 C:\Users\eske\Desktop\apic>cpuID.exe
@@ -298,7 +298,7 @@ EBX (numerator)         : 166
 ECX (core crystal clock): 38400000 Hz
 => Computed TSC freq    : 3187200000 Hz
 ```
-tsc freq = `(core crystal clock * EBX) / EAX`
+tsc freq $= \frac{\text{core crystal clock} \times \text{EBX}}{\text{EAX}}$
 
 
 ## 7.3 Being smarter by looking at HalpTimerTraceTimingHardware
@@ -378,7 +378,7 @@ HalpTimerRegister((__int64)v3, &DestinationString, v0);
 HalpTimerAuxiliaryClockEnabled = 1;
 ```
 In the end, it corresponds to what I demonstrated earlier, which is the CPUID.15, which is the ART timer, as the ART post says: "On systems that support ART a new CPUID leaf (0x15) returns parameters
-“m” and “n” such that: TSC_value = (ART_value * m) / n + k [n >= 2]"
+"m" and "n" such that: TSC_value = (ART_value * m) / n + k [n >= 2]"
 
 which kind of exactly was the same as as we already explored with this
 ```bat
@@ -388,7 +388,7 @@ EBX (numerator)         : 166
 ECX (core crystal clock): 38400000 Hz
 => Computed TSC freq    : 3187200000 Hz
 ```
-tsc freq = `(core crystal clock * EBX) / EAX`
+tsc freq $= \frac{\text{core crystal clock} \times \text{EBX}}{\text{EAX}}$
 
 ## 8. Investigating frequency of HPET (will be useful later)
 
@@ -409,10 +409,10 @@ fffff7e0`80014000  031aba85`8086a701
 ```
 So the upper 32 bits are `0x031aba85` and lhe lower 32 bits `0x8086a701` contain the vendor ID (Intel) and capability bits.
 
-`0x031aba85` in decimal is `52083333` in femtoseconds, In seconds that would be equivalent to `52083333*1e-15s = 52.083333ns`
+`0x031aba85` in decimal is $52083333$ in femtoseconds, In seconds that would be equivalent to $52083333 \times 10^{-15}\text{s} = 52.083333\text{ns}$
 
 We can now get the frequency of my HPET:
-`Frequency(Hz)=1000000000000000/52083333=19200000.1229`
+$$\text{Frequency(Hz)} = \frac{10^{15}}{52083333} = 19200000.1229$$
 
 
 
@@ -652,8 +652,8 @@ HalpVpptUpdatePhysicalTimer();
 ### 10.5 Frequency Translation Layer
 
 **VPPT provides frequency standardization:**
-- **Application Interface**: 10 MHz (standardized virtual frequency)
-- **Hardware Reality**: 19.2 MHz (actual HPET frequency from period calculation)
+- **Application Interface**: $10\text{ MHz}$ (standardized virtual frequency)
+- **Hardware Reality**: $19.2\text{ MHz}$ (actual HPET frequency from period calculation)
 - **Conversion**: VPPT handles all frequency translations internally
 
 ### 10.6 The Complete Answer
@@ -662,7 +662,7 @@ HalpVpptUpdatePhysicalTimer();
 
 1. **Platform Timer Compliance**: Uses actual hardware timers (HPET) as required
 2. **Virtualization Benefits**: VPPT provides timer multiplexing and standardized interface
-3. **Frequency Standardization**: 10 MHz virtual interface regardless of hardware frequency
+3. **Frequency Standardization**: $10\text{ MHz}$ virtual interface regardless of hardware frequency
 4. **Performance Optimization**: Single physical timer serves multiple virtual timers
 5. **Hypervisor Compatibility**: VPPT is designed to work with virtualized environments
 
@@ -681,7 +681,7 @@ Physical HPET Chip
 
 ## 11. I am still not done yet.
 I still want to look at what happens when USEPLATFORMTICK is set to no.
-There is also a byproduct of using useplaytformtick no, you can only set your timer resolution in 33ns intervals.
+There is also a byproduct of using useplaytformtick no, you can only set your timer resolution in $33\text{ns}$ intervals.
 
 I restart my pc and then we can look at all the timers again:
 
@@ -732,17 +732,17 @@ lkd> ? poi (fffff7d1`40013be0+0xC0)
 Evaluate expression: 38400000 = 00000000`0249f000
 ```
 I also just took the frequency of the ART, since it is relevant for this.
-Lets look at `38400000/300001`=127.9995 (approx 128). 
+Lets look at $\frac{38400000}{300001} = 127.9995$ (approx $128$). 
 
 This lines up with APIC timer specs from intel
 
 [Intel SDM 3A Goto page 408](https://kib.kiev.ua/x86docs/Intel/SDMs/253668-083.pdf)
 
-The Local APIC’s Divide Configuration Register (DCR) can select one of eight divisors: 1, 2, 4, 8, 16, 32, 64, or 128. In our case it is 128, so the APIC timer frequency is `38400000/128 = 300000` Hz, which is exactly what we saw.
+The Local APIC's Divide Configuration Register (DCR) can select one of eight divisors: 1, 2, 4, 8, 16, 32, 64, or 128. In our case it is 128, so the APIC timer frequency is $\frac{38400000}{128} = 300000\text{ Hz}$, which is exactly what we saw.
 
-This already answers the question of why we can only set the timer resolution in 33ns intervals, because 1/300000 = 3.3333e-6 seconds = 3.3333 microseconds = 33.3333 nanoseconds.
+This already answers the question of why we can only set the timer resolution in $33\text{ns}$ intervals, because $\frac{1}{300000} = 3.3333 \times 10^{-6}\text{s} = 3.3333\text{ μs} = 33.3333\text{ ns}$.
 ```math
 f_{\rm tick} = \frac{\text{CoreCrystalFreq}}{128}
              = \frac{38.4\text{ MHz}}{128}
-             = 300 000\text{ Hz}
-\```
+             = 300,000\text{ Hz}
+```
