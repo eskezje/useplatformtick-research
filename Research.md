@@ -789,3 +789,8 @@ Lets go all the way back to the source of where everything with timers start `Ha
 
 [HalpTimerInitSystem.c](HalpFindTimer_xrefs/02_HalpTimerInitSystem_1404f42e0.c#L47)
 
+
+What I really want to know is how that timer gets initialized to HalpClockTime.
+
+*Discovery Phase:* During system initialization, [HalpApicTimerDiscover.c](HalpTimerRegisterBuiltinPluginsCommon/HalpApicDiscover.c) is called as a part of [HalpTimerRegisterBuiltinPluginsCommon.c](HalpTimerRegisterBuiltinPluginsCommon/HalpTimerRegisterBuiltinPluginsCommon.c)
+

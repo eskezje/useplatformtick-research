@@ -1,0 +1,101 @@
+kd> bp nt!HalpTimerFindIdealClockSource ".printf \"\\n=== IDEAL CLOCK SOURCE ENTRY ===\\n\"; .printf \"Platform forced: %d\\n\", by(nt!HalpTimerPlatformClockSourceForced); .printf \"Current HalpClockTimer: %p\\n\", poi(nt!HalpClockTimer)"
+kd> bp nt!HalpFindTimer ".printf \"\\nHalpFindTimer(Type=%d, Req=0x%x, Forbidden=0x%x, Optional=0x%x, Flags=0x%x)\\n\", @rcx, @rdx, @r8, @r9, by(@rsp+0x28); .printf \"  Called from: \"; kc 1"
+kd> bp nt!HalpFindTimer+0x156 ".printf \"  -> Result: %p\", @rax; .if (@rax != 0) { .printf \" SUCCESS (Type %d, Caps 0x%x)\\n\", poi(@rax+0xE4), poi(@rax+0xE0); } .else { .printf \" FAILED\\n\"; }"
+kd> bp nt!HalpTimerFindIdealClockSource+0x81 ".printf \"\\n>>> Hypervisor timer search (Type 8) completed: %p\\n\", @rax"
+kd> bp nt!HalpTimerFindIdealClockSource+0xa5 ".printf \"\\n>>> Platform timer search (Type 11) completed: %p\\n\", @rax" 
+kd> bp nt!HalpTimerFindIdealClockSource+0xe1 ".printf \"\\n>>> Profile interface search (Type 0) completed: %p\\n\", @rax"
+kd> bp nt!HalpTimerFindIdealClockSource+0x22f ".printf \"\\n*** ENTERING LABEL_26 - CAPABILITY CHECK ***\\n\"; .printf \"Timer found: %p\\n\", @rax; .if (@rax != 0) { .printf \"Timer type: %d, Caps: 0x%x\\n\", poi(@rax+0xE4), poi(@rax+0xE0); }"
+kd> bp nt!HalpTimerFindIdealClockSource+0x238 ".printf \"Capability check (caps & 0x50): 0x%x\\n\", poi(@rax+0xE0) & 0x50"
+kd> bp nt!HalpTimerFindIdealClockSource+0x25c ".printf \"\\n*** FINAL RESULT FROM HalpTimerFindIdealClockSource ***\\n\"; .printf \"Returning: %p\\n\", @rax; .if (@rax != 0) { .printf \"Timer type: %d, Caps: 0x%x\\n\", poi(@rax+0xE4), poi(@rax+0xE0); } .else { .printf \"NULL - no timer found\\n\"; }"
+kd> bp nt!HalpTimerSelectRoles+0x7a ".printf \"\\n*** ASSIGNMENT TO HalpClockTimer ***\\n\"; .printf \"Assigning timer %p to HalpClockTimer\\n\", @rdi; .printf \"Timer type: %d, Caps: 0x%x\\n\", poi(@rdi+0xE4), poi(@rdi+0xE0)"
+kd> bp nt!HalpTimerSelectRoles+0x81 ".printf \"\\n*** VERIFICATION ***\\n\"; .printf \"HalpClockTimer now contains: %p\\n\", poi(nt!HalpClockTimer); .printf \"Timer type: %d\\n\", poi(poi(nt!HalpClockTimer)+0xE4)"
+kd> g
+
+HalpFindTimer(Type=5, Req=0x0, Forbidden=0x0, Optional=0x0, Flags=0x1)
+  Called from:  # Call Site
+00 nt!HalpFindTimer
+nt!HalpFindTimer:
+fffff807`b2f037c0 488bc4          mov     rax,rsp
+kd> g
+
+HalpFindTimer(Type=1, Req=0x2, Forbidden=0x6000, Optional=0x0, Flags=0x0)
+  Called from:  # Call Site
+00 nt!HalpFindTimer
+nt!HalpFindTimer:
+fffff807`b2f037c0 488bc4          mov     rax,rsp
+kd> g
+
+=== IDEAL CLOCK SOURCE ENTRY ===
+Platform forced: 0
+Current HalpClockTimer: 0000000000000000
+nt!HalpTimerFindIdealClockSource:
+fffff807`b2ef6b8c 488bc4          mov     rax,rsp
+kd> g
+
+HalpFindTimer(Type=8, Req=0x60, Forbidden=0x6000, Optional=0xf00, Flags=0x0)
+  Called from:  # Call Site
+00 nt!HalpFindTimer
+nt!HalpFindTimer:
+fffff807`b2f037c0 488bc4          mov     rax,rsp
+kd> g
+
+>>> Hypervisor timer search (Type 8) completed: 0000000000000000
+nt!HalpTimerFindIdealClockSource+0x81:
+fffff807`b2ef6c0d 4885c0          test    rax,rax
+kd> g
+
+HalpFindTimer(Type=11, Req=0x220, Forbidden=0x0, Optional=0x50, Flags=0x0)
+  Called from:  # Call Site
+00 nt!HalpFindTimer
+nt!HalpFindTimer:
+fffff807`b2f037c0 488bc4          mov     rax,rsp
+kd> g
+
+>>> Platform timer search (Type 11) completed: 0000000000000000
+nt!HalpTimerFindIdealClockSource+0xa5:
+fffff807`b2ef6c31 4885c0          test    rax,rax
+kd> g
+
+HalpFindTimer(Type=0, Req=0x21, Forbidden=0x6000, Optional=0xf00, Flags=0x0)
+  Called from:  # Call Site
+00 nt!HalpFindTimer
+nt!HalpFindTimer:
+fffff807`b2f037c0 488bc4          mov     rax,rsp
+kd> g
+
+>>> Profile interface search (Type 0) completed: fffff7a9c0035600
+nt!HalpTimerFindIdealClockSource+0xe1:
+fffff807`b2ef6c6d 4885c0          test    rax,rax
+kd> g
+
+*** ENTERING LABEL_26 - CAPABILITY CHECK ***
+Timer found: fffff7a9c0035600
+Timer type: 7, Caps: 0x863
+nt!HalpTimerFindIdealClockSource+0x22f:
+fffff807`b2ef6dbb 8b88e0000000    mov     ecx,dword ptr [rax+0E0h]
+kd> g
+Capability check (caps & 0x50): 0x40
+nt!HalpTimerFindIdealClockSource+0x238:
+fffff807`b2ef6dc4 740b            je      nt!HalpTimerFindIdealClockSource+0x245 (fffff807`b2ef6dd1)
+kd> g
+
+*** FINAL RESULT FROM HalpTimerFindIdealClockSource ***
+Returning: fffff7a9c0035600
+Timer type: 7, Caps: 0x863
+nt!HalpTimerFindIdealClockSource+0x25c:
+fffff807`b2ef6de8 c3              ret
+kd> g
+
+*** ASSIGNMENT TO HalpClockTimer ***
+Assigning timer fffff7a9c0035600 to HalpClockTimer
+Timer type: 7, Caps: 0x863
+nt!HalpTimerSelectRoles+0x7a:
+fffff807`b2ef7a02 48893da7a6ac00  mov     qword ptr [nt!HalpClockTimer (fffff807`b39c20b0)],rdi
+kd> g
+
+*** VERIFICATION ***
+HalpClockTimer now contains: fffff7a9c0035600
+Timer type: 7
+nt!HalpTimerSelectRoles+0x81:
+fffff807`b2ef7a09 488b0d80a5ac00  mov     rcx,qword ptr [nt!HalpPerformanceCounter (fffff807`b39c1f90)]
+kd> g
