@@ -62,6 +62,7 @@ We then look at the reference of HalpTimerPlatformSourceForced, it is found the 
 If you followed along from the previous section of `useplatformtick`, you would notice that `HalpTimerPlatformSourceForced` might look familiar.
 It has 3 references excluding `HalpMiscGetParameters`: [HalpTimerFindIdealPerformanceCounterSource](HalpFindTimer_xrefs/01_HalpTimerFindIdealPerformanceCounterSource_1404f3ff0.c) as we previously saw, [HalSocRequestConfigurationData](HalpTimerRegisterBuiltinPluginsCommon/HalSocRequestConfigurationData.c) and then a function we havent seen before [HalpNumaInitializeStaticConfiguration](HalpNumaInitializeStaticConfiguration.c).
 
+# 2.1 Looking into `HalpTimerFindIdealPerformanceCounterSource`
 
 Lets start by taking a look at `HalpTimerFindIdealPerformanceCounterSource`, It has a very familiar structure as to `HalpTimerFindIdealClockSource` from the previous section of useplatformtick:
 ```c
@@ -115,6 +116,8 @@ LABEL_11:
   HalpPerformanceCounter = v8;
 ```
 
+# 2.2 Timer Type and Speed
+
 So we try to find the "ideal performance counter source" and set it to `HalpPerformanceCounter`, which is then used in the function `HalpTimerInitialize`
 We can first start off by looking at what my current `HalpPerformanceCounter` is set to (we already checked it in the previous section):
 ```
@@ -154,9 +157,36 @@ ULONG_PTR *HalpTimerFindIdealPerformanceCounterSource()
     {
 ```
 
+# 2.3 Practical Effects on QueryPerformanceCounter
+
 This timer is used as the performance counter on the system, whenever you are using `QueryPerformanceCounter` or `QueryPerformanceFrequency`, it will use this timer. Even though it is 3.187 GHz, QueryPerformanceCounter will still only be running with 10 MHz.
 
 If you want to learn more about how it gets converted to 10 MHz, then i recommend lookinag at Casey Muratori breakdown of the [QueryPerformanceCounter video](https://www.youtube.com/watch?v=pZ0MF1q_LUE), [article format](https://www.computerenhance.com/p/how-does-queryperformancecounter).
 
 If you wish you can take a look yourself at the function [KeQueryPerformanceCounter](KeQueryPerformanceCounter.c)
 
+If you then turn on `HalpTimerPlatformSourceForced` you will get to this section:
+Lets start by taking a look at `HalpTimerFindIdealPerformanceCounterSource`, It has a very familiar structure as to `HalpTimerFindIdealClockSource` from the previous section of useplatformtick:
+```c
+if ( HalpTimerPlatformSourceForced )        // if bcdedit /set USEPLATFORMCLOCK yes
+  goto SelectPlatform;                      // then we go to SelectPlatform
+...
+SelectPlatform:
+          result = HalpFindTimer(11, 2, 0x6000, 0, 0);
+          if ( !result )
+          {
+            result = HalpFindTimer(3, 2, 0x6000, 0, 0);
+            if ( !result )
+            {
+              result = HalpFindTimer(1, 2, 0x6000, 0, 0);
+              if ( !result )
+              {
+                if ( HalpIsHvPresent() )
+                  return 0LL;
+                result = HalpFindTimer(0, 2, 0x6000, 0, 0);
+                if ( !result )
+                  return 0LL;
+```
+
+From previous research, we know that we wont find timer type 11, so we will try to find timer type 3 (HPET), and if that doesnt work, then we try to find timer type 1, i believe that this is ACPI PM Timer.
+I previously tested with `QueryPerformanceFrequency` and `QueryPerformanceCounter` and saw that whenever I had `USEPLATFORMCLOCK yes` i would still be getting 10MHz, but tracing through it live debugging and using TTD (time travel debugging) we could see that we didnt get it from rdtscp, but some other location. Whenever i then disabled `USEPLATFORMCLOCK` i would get the speed of `3579545` which is the ACPI PM Timer, which is 3.579545 MHz. [OSDEV ACPI Timer](https://wiki.osdev.org/ACPI_Timer). If you dont trust my words, then you can check it yourself with the knowledge you have gained from reading hopefully both sections.
