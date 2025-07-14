@@ -190,3 +190,5 @@ SelectPlatform:
 
 From previous research, we know that we wont find timer type 11, so we will try to find timer type 3 (HPET), and if that doesnt work, then we try to find timer type 1, i believe that this is ACPI PM Timer.
 I previously tested with `QueryPerformanceFrequency` and `QueryPerformanceCounter` and saw that whenever I had `USEPLATFORMCLOCK yes` i would still be getting 10MHz, but tracing through it live debugging and using TTD (time travel debugging) we could see that we didnt get it from rdtscp, but some other location. Whenever i then disabled `USEPLATFORMCLOCK` i would get the speed of `3579545` which is the ACPI PM Timer, which is 3.579545 MHz. [OSDEV ACPI Timer](https://wiki.osdev.org/ACPI_Timer). If you dont trust my words, then you can check it yourself with the knowledge you have gained from reading hopefully both sections.
+
+I have later found out that [djdallmann](https://github.com/djdallmann/GamingPCSetup/blob/5aecc5e85d919a3b119af81fa20f45d252a61a33/CONTENT/RESEARCH/WINKERNEL/README.md#hardware-abstraction-layer-hal) already had done some of the research, and you see that it matches with the research we have done here.
