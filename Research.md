@@ -2,7 +2,7 @@
 
 [Discord server where I do research](https://discord.gg/YdYVSBbZWY)
 
-[Looking into to other BCDEDITS such as `tscsyncpolicy` and `useplatformclock`](Research_BCD_edits.md)
+[Looking into to other BCDEDITS such as tscsyncpolicy and useplatformclock](Research_BCD_edits.md)
 
 ## 1. Initial Discovery and String Analysis
 

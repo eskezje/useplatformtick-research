@@ -10,4 +10,4 @@ But I want to know more in depth what it means for "the clock to be backed by a 
 
 You can find the research on the usage of USEPLATFORMTICK in the [Research.md](Research.md) file. (Very inexperienced, so please correct me if I am wrong)
 
-[Looking into to other BCDEDITS such as `tscsyncpolicy` and `useplatformclock`](Research_BCD_edits.md)
+Looking into to other BCDEDITS such as [tscsyncpolicy and useplatformclock](Research_BCD_edits.md)
