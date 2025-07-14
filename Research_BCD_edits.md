@@ -62,7 +62,7 @@ We then look at the reference of HalpTimerPlatformSourceForced, it is found the 
 If you followed along from the previous section of `useplatformtick`, you would notice that `HalpTimerPlatformSourceForced` might look familiar.
 It has 3 references excluding `HalpMiscGetParameters`: [HalpTimerFindIdealPerformanceCounterSource](HalpFindTimer_xrefs/01_HalpTimerFindIdealPerformanceCounterSource_1404f3ff0.c) as we previously saw, [HalSocRequestConfigurationData](HalpTimerRegisterBuiltinPluginsCommon/HalSocRequestConfigurationData.c) and then a function we havent seen before [HalpNumaInitializeStaticConfiguration](HalpNumaInitializeStaticConfiguration.c).
 
-# 2.1 Looking into `HalpTimerFindIdealPerformanceCounterSource`
+## 2.1 Looking into `HalpTimerFindIdealPerformanceCounterSource`
 
 Lets start by taking a look at `HalpTimerFindIdealPerformanceCounterSource`, It has a very familiar structure as to `HalpTimerFindIdealClockSource` from the previous section of useplatformtick:
 ```c
@@ -116,7 +116,7 @@ LABEL_11:
   HalpPerformanceCounter = v8;
 ```
 
-# 2.2 Timer Type and Speed
+## 2.2 Timer Type and Speed
 
 So we try to find the "ideal performance counter source" and set it to `HalpPerformanceCounter`, which is then used in the function `HalpTimerInitialize`
 We can first start off by looking at what my current `HalpPerformanceCounter` is set to (we already checked it in the previous section):
@@ -157,7 +157,7 @@ ULONG_PTR *HalpTimerFindIdealPerformanceCounterSource()
     {
 ```
 
-# 2.3 Practical Effects on QueryPerformanceCounter
+## 2.3 Practical Effects on QueryPerformanceCounter
 
 This timer is used as the performance counter on the system, whenever you are using `QueryPerformanceCounter` or `QueryPerformanceFrequency`, it will use this timer. Even though it is 3.187 GHz, QueryPerformanceCounter will still only be running with 10 MHz.
 
