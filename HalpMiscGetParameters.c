@@ -125,8 +125,8 @@ LABEL_51:
       {
         HalpMiscDiscardLowMemory = 0;
       }
-      if ( strstr(v3, "USEPLATFORMCLOCK") )
-        HalpTimerPlatformSourceForced = 1;
+      if ( strstr(v3, "USEPLATFORMCLOCK") )         // if bcdedit /set USEPLATFORMCLOCK yes
+        HalpTimerPlatformSourceForced = 1;          // then we set HalpTimerPlatformSourceForced = 1, now we can look for references for HalpTimerPlatformSourceForced
       if ( strstr(v3, "USEPLATFORMTICK") )          // if bcdedit /set USEPLATFORMTICK yes
         HalpTimerPlatformClockSourceForced = 1;     // then we set HalpTimerPlatformClockSourceForced = 1, now we can look for references for HalpTimerPlatformClockSourceForced
       v17 = strstr(v3, "GROUPSIZE");

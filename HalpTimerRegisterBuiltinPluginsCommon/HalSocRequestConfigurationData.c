@@ -10,19 +10,10 @@ __int64 __fastcall HalSocRequestConfigurationData(int a1, __int64 a2, char *a3)
   __int64 v11; // rcx
   __int64 v12; // rcx
   char *p_X2ApicPolicy; // rcx
-  __int64 _RAX; // rax
-  __int64 _RAX; // rax
   bool v19; // cf
   char v20; // al
-  __int64 _RAX; // rax
-  __int64 _RAX; // rax
-  __int64 _RDX; // rdx
-  __int64 _RCX; // rcx
-  __int64 _RBX; // rbx
   __int64 v26; // rax
   bool v27; // r11
-  __int64 _RAX; // rax
-  __int64 _RAX; // rax
   bool v33; // al
   bool v35; // [rsp+20h] [rbp-30h] BYREF
   char IsPartitionCpuManager; // [rsp+21h] [rbp-2Fh] BYREF
@@ -65,7 +56,7 @@ __int64 __fastcall HalSocRequestConfigurationData(int a1, __int64 a2, char *a3)
   {
     if ( (unsigned __int8)HalpIsMicrosoftCompatibleHvLoaded(v7) )
     {
-      _RAX = 1073741827LL;
+      _RAX = 0x40000003LL;
       __asm { cpuid }
       v46 = 0LL;
       v44 = _RAX;
@@ -76,7 +67,7 @@ __int64 __fastcall HalSocRequestConfigurationData(int a1, __int64 a2, char *a3)
       {
         if ( (unsigned __int8)HalpIsPartitionCpuManager(_RCX, _RDX) )
         {
-          _RAX = 1073741830LL;
+          _RAX = 0x40000006LL;
           __asm { cpuid }
           v19 = (_RAX & 0x200) != 0;
           v33 = v27;

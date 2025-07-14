@@ -2,6 +2,8 @@
 
 [Discord server where I do research](https://discord.gg/YdYVSBbZWY)
 
+[Looking into to other BCDEDITS such as `tscsyncpolicy` and `useplatformclock`](Research_BCD_edits.md)
+
 ## 1. Initial Discovery and String Analysis
 
 The only usage of USEPLATFORMTICK in the entire system was found by dumping all strings of system32 using [strings2.exe](https://github.com/glmcdona/strings2) and searching for USEPLATFORMTICK. No other code uses `USEPLATFORMTICK` besides ntoskrnl.exe and ntkrla57.exe.
