@@ -61,3 +61,56 @@ We then look at the reference of HalpTimerPlatformSourceForced, it is found the 
 ```
 If you followed along from the previous section of `useplatformtick`, you would notice that `HalpTimerPlatformSourceForced` might look familiar.
 It has 3 references excluding `HalpMiscGetParameters`: [HalpTimerFindIdealPerformanceCounterSource](HalpFindTimer_xrefs/01_HalpTimerFindIdealPerformanceCounterSource_1404f3ff0.c) as we previously saw, [HalSocRequestConfigurationData](HalpTimerRegisterBuiltinPluginsCommon/HalSocRequestConfigurationData.c) and then a function we havent seen before [HalpNumaInitializeStaticConfiguration](HalpNumaInitializeStaticConfiguration.c).
+
+
+Lets start by taking a look at `HalpTimerFindIdealPerformanceCounterSource`, It has a very familiar structure as to `HalpTimerFindIdealClockSource` from the previous section of useplatformtick:
+```c
+if ( HalpTimerPlatformSourceForced )        // if bcdedit /set USEPLATFORMCLOCK yes
+  goto SelectPlatform;                      // then we go to SelectPlatform
+...
+SelectPlatform:
+          result = HalpFindTimer(11, 2, 0x6000, 0, 0);
+          if ( !result )
+          {
+            result = HalpFindTimer(3, 2, 0x6000, 0, 0);
+            if ( !result )
+            {
+              result = HalpFindTimer(1, 2, 0x6000, 0, 0);
+              if ( !result )
+              {
+                if ( HalpIsHvPresent() )
+                  return 0LL;
+                result = HalpFindTimer(0, 2, 0x6000, 0, 0);
+                if ( !result )
+                  return 0LL;
+```
+
+It is still unclear what timer type 11 is, but `HalpTimerFindIdealPerformanceCounterSource` is also used the function `HalpTimerSelectRoles` as we are pretty familiar with:
+We come from finding our `HalpClockTimer` with `HalpTimerFindIdealClockSource()`
+```c
+     *(_DWORD *)(v6 + 184) |= 4u;
+      HalpClockTimer = v6;
+      goto LABEL_11;
+    }
+  }
+  do
+  {
+LABEL_11:
+    if ( HalpPerformanceCounter
+      && (*(_DWORD *)(HalpPerformanceCounter + 0xB8) & 4) != 0
+      && HalpPerformanceCounter != HalpClockTimer )
+    {
+      goto LABEL_17;
+    }
+    IdealPerformanceCounterSource = (__int64)HalpTimerFindIdealPerformanceCounterSource();
+    v8 = IdealPerformanceCounterSource;
+    if ( !IdealPerformanceCounterSource )
+    {
+      HalpTimerLastProblem = 21;
+      return 0xC0000001;
+    }
+  }
+  while ( (int)HalpTimerInitialize(IdealPerformanceCounterSource) < 0 );
+  HalpPerformanceCounter = v8;
+```
+
