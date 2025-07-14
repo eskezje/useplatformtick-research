@@ -96,11 +96,12 @@ We come from finding our `HalpClockTimer` with `HalpTimerFindIdealClockSource()`
   do
   {
 LABEL_11:
+    // After HalpClockTimer is established
     if ( HalpPerformanceCounter
-      && (*(_DWORD *)(HalpPerformanceCounter + 0xB8) & 4) != 0
-      && HalpPerformanceCounter != HalpClockTimer )
+      && (*(_DWORD *)(HalpPerformanceCounter + 0xB8) & 4) != 0  // Already initialized
+      && HalpPerformanceCounter != HalpClockTimer )             // Different from clock timer
     {
-      goto LABEL_17;
+      goto LABEL_17;    // Use existing performance counter
     }
     IdealPerformanceCounterSource = (__int64)HalpTimerFindIdealPerformanceCounterSource();
     v8 = IdealPerformanceCounterSource;
@@ -113,4 +114,49 @@ LABEL_11:
   while ( (int)HalpTimerInitialize(IdealPerformanceCounterSource) < 0 );
   HalpPerformanceCounter = v8;
 ```
+
+So we try to find the "ideal performance counter source" and set it to `HalpPerformanceCounter`, which is then used in the function `HalpTimerInitialize`
+We can first start off by looking at what my current `HalpPerformanceCounter` is set to (we already checked it in the previous section):
+```
+lkd> db HalpTimerPlatformSourceForced l1
+fffff802`edfc24b0  00                                               .
+lkd> dq HalpPerformanceCounter l1
+fffff802`edfc2430  fffff796`00001000
+```
+We know that we can find the timer type by looking at the offset `0xE4` for any timer, as well as the speed in `0xC0`
+```
+lkd> dd fffff796`00001000+0xE4 l1
+fffff796`000010e4  00000005
+lkd> dd fffff796`00001000+0xC0 l1
+fffff796`000010c0  bdf8cb9a
+lkd> ? bdf8cb9a
+Evaluate expression: 3187198874 = 00000000`bdf8cb9a
+```
+We can see that is as expected, the timer type is `5` (TSC) and a speed of 3187198874 (3.187 GHz), which means that we already find it early on:
+```c
+ULONG_PTR *HalpTimerFindIdealPerformanceCounterSource()
+{
+  int v0; // ebx
+  ULONG_PTR *result; // rax
+
+  if ( HalpTimerPlatformSourceForced )
+    goto SelectPlatform;
+  if ( HalpIsHvPresent() )
+    goto LABEL_19;
+  v0 = 0x2000;
+  if ( (unsigned __int8)HalpTimerDeepestIdleState > 1u )
+    v0 = 0x6000;
+  result = HalpFindTimer(5, 3, v0, 0, 0); // Find timer type 5 (TSC) with flags 3 and v0
+  if ( !result )
+  {
+    result = HalpFindTimer(10, 3, v0, 0, 0);
+    if ( !result )
+    {
+```
+
+This timer is used as the performance counter on the system, whenever you are using `QueryPerformanceCounter` or `QueryPerformanceFrequency`, it will use this timer. Even though it is 3.187 GHz, QueryPerformanceCounter will still only be running with 10 MHz.
+
+If you want to learn more about how it gets converted to 10 MHz, then i recommend lookinag at Casey Muratori breakdown of the [QueryPerformanceCounter video](https://www.youtube.com/watch?v=pZ0MF1q_LUE), [article format](https://www.computerenhance.com/p/how-does-queryperformancecounter).
+
+If you wish you can take a look yourself at the function [KeQueryPerformanceCounter](KeQueryPerformanceCounter.c)
 
