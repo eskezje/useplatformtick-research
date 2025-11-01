@@ -30,6 +30,8 @@ Python>export_each_func.export_xrefs_pseudocode('HalpTimerFindIdealClockSource',
 
 In [HalpTimerFindIdealClockSource.c](HalpFindTimer_xrefs/01_HalpTimerFindIdealClockSource_1404f3d8c.c#L3), we can analyze the control flow:
 
+If either `HalpHvCpuManager` or `HalpHvPresent` are false, then we jump to LABEL_7, where we then try to find this timer `Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);`, whatever it might be. Once it finds a suitable timer, it then jumps to LABEL_26, assigns `v4 = *(_DWORD *)(Timer + 0xE0);` if then `(v4 & 0x50) != 0` then we `return Timer & -(__int64)((v4 & 0x20) != 0);`, I do not know what the second part is yet (`-(__int64)((v4 & 0x20) != 0)`).
+
 ```c
 __int64 HalpTimerFindIdealClockSource()
 {
@@ -74,10 +76,8 @@ LABEL_7:
     if ( Timer )
       goto LABEL_26;
   }
-```
 
 
-If either `HalpHvCpuManager` or `HalpHvPresent` are false, then we jump to LABEL_7, where we then try to find this timer `Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);`, whatever it might be. Once it finds a suitable timer, it then jumps to LABEL_26, assigns `v4 = *(_DWORD *)(Timer + 0xE0);` if then `(v4 & 0x50) != 0` then we `return Timer & -(__int64)((v4 & 0x20) != 0);`, I do not know what the second part is yet (`-(__int64)((v4 & 0x20) != 0)`).
 
 ### 3.1 Timer Assignment Flow
 
