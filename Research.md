@@ -30,6 +30,53 @@ Python>export_each_func.export_xrefs_pseudocode('HalpTimerFindIdealClockSource',
 
 In [HalpTimerFindIdealClockSource.c](HalpFindTimer_xrefs/01_HalpTimerFindIdealClockSource_1404f3d8c.c#L3), we can analyze the control flow:
 
+```c
+__int64 HalpTimerFindIdealClockSource()
+{
+  char v0; // si
+  __int64 v1; // rbx
+  char v2; // di
+  __int64 Timer; // rax
+  int v4; // ecx
+
+  v0 = HalpHvPresent;
+  v1 = 0LL;
+  if ( !HalpHvPresent || !HalpHvCpuManager )
+  {
+LABEL_5:
+    v2 = HalpTimerPlatformClockSourceForced;
+    if ( HalpTimerPlatformClockSourceForced )
+      goto LABEL_7;
+    Timer = (__int64)HalpFindTimer(8, 96, 24576, 3840, 0);
+    if ( !Timer )
+      goto LABEL_7;
+LABEL_26:
+    v4 = *(_DWORD *)(Timer + 224);
+    if ( (v4 & 0x50) != 0 )
+      return Timer & -(__int64)((v4 & 0x20) != 0);
+    return v1;
+  }
+  v2 = HalpTimerPlatformClockSourceForced;
+  if ( !HalpTimerPlatformClockSourceForced )
+  {
+    Timer = (__int64)HalpFindTimer(11, 544, 0, 80, 0);
+    if ( Timer )
+      goto LABEL_26;
+    goto LABEL_5;
+  }
+LABEL_7:
+  Timer = (__int64)HalpFindTimer(11, 544, 0, 80, 0);
+  if ( Timer )
+    goto LABEL_26;
+  if ( !v2 && !v0 && HalpProfileInterface != &DefaultProfileInterface )
+  {
+    Timer = (__int64)HalpFindTimer(0, 33, 24576, 3840, 0);
+    if ( Timer )
+      goto LABEL_26;
+  }
+```
+
+
 If either `HalpHvCpuManager` or `HalpHvPresent` are false, then we jump to LABEL_7, where we then try to find this timer `Timer = (__int64)HalpFindTimer(11, 0x220, 0, 0x50, 0);`, whatever it might be. Once it finds a suitable timer, it then jumps to LABEL_26, assigns `v4 = *(_DWORD *)(Timer + 0xE0);` if then `(v4 & 0x50) != 0` then we `return Timer & -(__int64)((v4 & 0x20) != 0);`, I do not know what the second part is yet (`-(__int64)((v4 & 0x20) != 0)`).
 
 ### 3.1 Timer Assignment Flow
