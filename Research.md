@@ -76,7 +76,7 @@ LABEL_7:
     if ( Timer )
       goto LABEL_26;
   }
-
+```
 
 
 ### 3.1 Timer Assignment Flow
